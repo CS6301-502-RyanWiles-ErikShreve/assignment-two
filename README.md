@@ -17,3 +17,22 @@ that are all present in 4.5.1, and have commit messages referencing the bug id, 
 ### Apache Ant
 
 
+## Use of CS6301-method-splitter
+
+The assignment requests the use of https://github.com/amarcusgit/cs6301-method-splitter.git to split .java files into methods for the corpus.
+This repo has been added to our repo as a subtree, located at /method-splitter.
+
+To update the subtree:
+
+Change your CWD to the root of our repo (this is very important as the commands below assume this.)
+
+Run:
+    git remote -v 
+If a link to  https://github.com/amarcusgit/cs6301-method-splitter.git 
+is not present, run:
+    git remote add -f method-splitter  https://github.com/amarcusgit/cs6301-method-splitter.git
+
+Then run:
+    git subtree pull --prefix methdod-splitter method-splitter master --squash
+	
+Finally, commit and push.
