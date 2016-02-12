@@ -27,18 +27,18 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-public class Parser {
+public class LuceneUtil {
 	private String indexDir;
 
 	private Path indexPath;
 
-	public Parser(String indexDir) {
+	public LuceneUtil(String indexDir) {
 		this.indexDir = indexDir;
 		indexPath = new File(indexDir).toPath();
 	}
 
 	public static void main(String[] args) {
-		Parser parser = new Parser("/Users/rwiles/lucene/index");
+		LuceneUtil parser = new LuceneUtil("/Users/rwiles/lucene/index");
 
 		parser.indexDocument("document title or id goes here", "document body that you'll query on goes here");
 		List<Document> docs = parser.queryLucene("your query goes here");
