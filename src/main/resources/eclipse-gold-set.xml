@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bug_reports>
+	<bug_report id="465566">
+		<title>Organize imports does not remove duplicated imports</title>
+		<description>
+			Created attachment 252792 [details]
+			Example project to reproduce the issue
+
+			To reproduce this bug please import the example and navigate to
+			foo.MyClazz.
+			When invoking organize imports you'll see that the unsed imports will
+			stay.
+			The referenced class bar.MyType is on classpath twice. Once in the
+			project and once in a jar on the buildPath.
+		</description>
+		<system_version>4.5</system_version>
+		<change_set>
+			<system_revision>c044b38393640b202de21fc2c846d93b3cac96f2</system_revision>
+			<modified_methods>
+				<method id="List_ReorderingImportAdder.addImports_Collection_Collection">
+					<signature>List&lt;ImportName&gt; addImports(Collection&lt;ImportName&gt; existingImports, Collection&lt;ImportName&gt; importsToAdd)</signature>
+					<file>org.eclipse.jdt.core/dom/org/eclipse/jdt/internal/core/dom/rewrite/imports/ReorderingImportAdder.java</file>
+				</method>
+			</modified_methods>
+		</change_set>
+	</bug_report>
+	<bug_report id="">
+		<title></title>
+		<description></description>
+		<system_version></system_version>
+		<change_set>
+			<system_revision></system_revision>
+			<modified_methods>
+				<method id="">
+					<signature></signature>
+					<file></file>
+				</method>
+			</modified_methods>
+		</change_set>
+	</bug_report>
+	<bug_report id="">
+		<title></title>
+		<description></description>
+		<system_version></system_version>
+		<change_set>
+			<system_revision></system_revision>
+			<modified_methods>
+				<method id="">
+					<signature></signature>
+					<file></file>
+				</method>
+			</modified_methods>
+		</change_set>
+	</bug_report>
+	<bug_report id="">
+		<title></title>
+		<description></description>
+		<system_version></system_version>
+		<change_set>
+			<system_revision></system_revision>
+			<modified_methods>
+				<method id="">
+					<signature></signature>
+					<file></file>
+				</method>
+			</modified_methods>
+		</change_set>
+	</bug_report>
+	<bug_report id="">
+		<title></title>
+		<description></description>
+		<system_version></system_version>
+		<change_set>
+			<system_revision></system_revision>
+			<modified_methods>
+				<method id="">
+					<signature></signature>
+					<file></file>
+				</method>
+			</modified_methods>
+		</change_set>
+	</bug_report>
+</bug_reports>
