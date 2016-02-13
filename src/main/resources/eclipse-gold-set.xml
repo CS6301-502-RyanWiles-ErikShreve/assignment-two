@@ -4,80 +4,223 @@
 		<title>Organize imports does not remove duplicated imports</title>
 		<description>
 			Created attachment 252792 [details]
-			Example project to reproduce the issue
+			Example project to
+			reproduce the issue
 
-			To reproduce this bug please import the example and navigate to
+			To reproduce this bug please import the example
+			and navigate to
 			foo.MyClazz.
-			When invoking organize imports you'll see that the unsed imports will
+			When invoking organize imports you'll see
+			that the unsed imports will
 			stay.
-			The referenced class bar.MyType is on classpath twice. Once in the
-			project and once in a jar on the buildPath.
+			The referenced class bar.MyType is on
+			classpath twice. Once in the
+			project and once in a jar on the
+			buildPath.
 		</description>
 		<system_version>4.5</system_version>
 		<change_set>
-			<system_revision>c044b38393640b202de21fc2c846d93b3cac96f2</system_revision>
+			<system_revision>c044b38393640b202de21fc2c846d93b3cac96f2
+			</system_revision>
 			<modified_methods>
-				<method id="List_ReorderingImportAdder.addImports_Collection_Collection">
-					<signature>List&lt;ImportName&gt; addImports(Collection&lt;ImportName&gt; existingImports, Collection&lt;ImportName&gt; importsToAdd)</signature>
-					<file>org.eclipse.jdt.core/dom/org/eclipse/jdt/internal/core/dom/rewrite/imports/ReorderingImportAdder.java</file>
+				<method
+					id="List_ReorderingImportAdder.addImports_Collection_Collection">
+					<signature>List&lt;ImportName&gt;
+						addImports(Collection&lt;ImportName&gt; existingImports,
+						Collection&lt;ImportName&gt; importsToAdd)</signature>
+					<file>org.eclipse.jdt.core/dom/org/eclipse/jdt/internal/core/dom/rewrite/imports/ReorderingImportAdder.java
+					</file>
 				</method>
 			</modified_methods>
 		</change_set>
+		<unit_test>org.eclipse.jdt.core.tests.model/src/org/eclipse/jdt/core/tests/rewrite/describing/ImportRewriteTest.java
+		</unit_test>
 	</bug_report>
-	<bug_report id="">
-		<title></title>
-		<description></description>
+
+	<bug_report id="470506">
+		<title>formatter option "align field in columns" changed in Mars
+		</title>
+		<description>
+			working with Mars 4.5 RC3, formatting this class, the
+			result is:
+
+			public class TestZ {
+			public int a = 10;
+
+			public int
+			testAlignment = 10;
+			}
+
+
+			formatting this class, for example, with Eclipse
+			3.7.2, the result is:
+
+			public class TestZ {
+			public int a = 10;
+
+			public int
+			testAlignment = 10;
+			}
+
+			with Mars 4.5 RC3, the variables will be aligned
+			only without spaces :
+
+			public class TestZ {
+			public int a = 10;
+			public int
+			testAlignment = 10;
+			}
+		</description>
+		<system_version>4.5</system_version>
+		<change_set>
+			<system_revision>9db26c7bea8b081f74e04400ef73e415034114ae
+			</system_revision>
+			<modified_methods>
+				<method id="void_FieldAligner.prepareAlign_TypeDeclaration">
+					<signature>void prepareAlign(TypeDeclaration node)</signature>
+					<file>org.eclipse.jdt.core/formatter/org/eclipse/jdt/internal/formatter/linewrap/FieldAligner.java
+					</file>
+				</method>
+				<method id="boolean_FormatterBugsTests.visit_TypeDeclaration">
+					<signature>public boolean visit(TypeDeclaration node)</signature>
+					<file>org.eclipse.jdt.core/formatter/org/eclipse/jdt/internal/formatter/linewrap/WrapPreparator.java
+					</file>
+				</method>
+			</modified_methods>
+		</change_set>
+		<unit_test>org.eclipse.jdt.core.tests.model/src/org/eclipse/jdt/core/tests/formatter/FormatterBugsTests.java
+		</unit_test>
+	</bug_report>
+
+	<bug_report id="470986">
+		<title>"Enable line formatting" needs to be active for "Preserve
+			whitespace between code and line comments" to work.
+		</title>
+		<description>
+			As with Mars, the option "Enable line formatting" of the
+			Java formatter
+			needs to be checked for "Preserve whitespace between
+			code and line
+			comments" to work. If "Enable line formatting" is not
+			active,
+			whitespace between the code and line comments is removed
+			completely
+			even if "Preserve whitespace between code and line
+			comments" is
+			checked. If "Preserve whitespace between code and line
+			comments" is
+			deactivated, the whitespace is collapsed to one space.
+
+			Is
+			this supposed to be that way?
+
+			P.s.: I've seen #373625 and "Align
+			fields in columns" is not checked.
+		</description>
+		<system_version>4.5</system_version>
+		<change_set>
+			<system_revision>5528a485410d6dd0a6bc403d73b1c185f848beaa
+			</system_revision>
+			<modified_methods>
+				<method id="void_CommentsPreparator.preserveWhitespace_Token_int)">
+					<signature>void preserveWhitespace(Token commentToken, int
+						commentIndex)
+					</signature>
+					<file>org.eclipse.jdt.core/formatter/org/eclipse/jdt/internal/formatter/CommentsPreparator.java
+					</file>
+				</method>
+			</modified_methods>
+		</change_set>
+		<unit_test>org.eclipse.jdt.core.tests.model/src/org/eclipse/jdt/core/tests/formatter/FormatterCommentsBugsTest.java
+		</unit_test>
+	</bug_report>
+
+	<bug_report id="471090">
+		<title>Java Code Formatter breaks code if single line comments
+			contains unicode escape
+		</title>
+		<description>The Java Code Formatter (with default settings) formats
+			this:
+
+			public class FormatterBug {
+			public static void m() {
+			// xxx \u00C4
+			yyy
+			throw new RuntimeException();
+			}
+			}
+
+			to this:
+
+			public class FormatterBug {
+			public static void m() {
+			// xxx \u00C4 yyy throw new
+			RuntimeException();
+			}
+			}
+
+			then, if you format it again, to this;
+
+			public
+			class FormatterBug {
+			public static void m() {
+			// xxx \u00C4 yyy throw
+			new RuntimeException(); }
+			}
+
+
+			then, if you do it again, it doesn't do
+			anything, because the code doesn't
+			compile.
+		</description>
+		<system_version>4.5</system_version>
+		<change_set>
+			<system_revision>c554caa948bbe051a5aeee635338c74832d8067f
+			</system_revision>
+			<modified_methods>
+				<method id="Token_Token.fromCurrent_Scanner_int)">
+					<signature>Token fromCurrent(Scanner scanner, int currentToken)
+					</signature>
+					<file>org.eclipse.jdt.core/formatter/org/eclipse/jdt/internal/formatter/Token.java
+					</file>
+				</method>
+			</modified_methods>
+		</change_set>
+		<unit_test>org.eclipse.jdt.core.tests.model/src/org/eclipse/jdt/core/tests/formatter/FormatterBugsTests.java
+		</unit_test>
+	</bug_report>
+
+	<bug_report id="469753">
+		<title>[1.8][inference] Lambda type inference problem</title>
+		<description>Created attachment 254245 [details]
+			code sample
+
+			The attached code sample compiles fine with JDK8u40 (and on Eclipse Luna
+			SR2), but the Eclipse Mars Release Candidate 2 (4.5.0RC2) java
+			compiler fails with the following error:
+
+			The method go(Iterator&lt;Map.Entry&lt;String,LambdaBug.Item&gt;&gt;) in
+			the type LambdaBug is not applicable for the arguments
+			(Iterator&lt;Object&gt;)</description>
 		<system_version></system_version>
 		<change_set>
-			<system_revision></system_revision>
+			<system_revision>4.5</system_revision>
 			<modified_methods>
-				<method id="">
-					<signature></signature>
-					<file></file>
+				<method id="boolean_InferenceContext18.addConstraintsToC_OneExpr_Expression_Set_TypeBinding_TypeBinding_MethodBinding_boolean">
+					<signature>boolean addConstraintsToC_OneExpr(Expression expri, Set&lt;ConstraintFormula&gt; c, TypeBinding fsi, TypeBinding substF, MethodBinding method, boolean interleaved)</signature>
+					<file>org.eclipse.jdt.core/compiler/org/eclipse/jdt/internal/compiler/lookup/InferenceContext18.java</file>
+				</method>
+				<method id="Substitution_InferenceContext18.getResultSubstitution_BoundSet)">
+					<signature>Substitution getResultSubstitution(final BoundSet result)</signature>
+					<file>org.eclipse.jdt.core/compiler/org/eclipse/jdt/internal/compiler/lookup/InferenceContext18.java</file>
+				</method>
+				<method id="void_InferenceContext18.reportUncheckedConversions_BoundSet)">
+					<signature>void reportUncheckedConversions(BoundSet solution)</signature>
+					<file>org.eclipse.jdt.core/compiler/org/eclipse/jdt/internal/compiler/lookup/InferenceContext18.java</file>
 				</method>
 			</modified_methods>
 		</change_set>
+		<unit_test>org.eclipse.jdt.core.tests.compiler/src/org/eclipse/jdt/core/tests/compiler/regression/GenericsRegressionTest_1_8.java</unit_test>
 	</bug_report>
-	<bug_report id="">
-		<title></title>
-		<description></description>
-		<system_version></system_version>
-		<change_set>
-			<system_revision></system_revision>
-			<modified_methods>
-				<method id="">
-					<signature></signature>
-					<file></file>
-				</method>
-			</modified_methods>
-		</change_set>
-	</bug_report>
-	<bug_report id="">
-		<title></title>
-		<description></description>
-		<system_version></system_version>
-		<change_set>
-			<system_revision></system_revision>
-			<modified_methods>
-				<method id="">
-					<signature></signature>
-					<file></file>
-				</method>
-			</modified_methods>
-		</change_set>
-	</bug_report>
-	<bug_report id="">
-		<title></title>
-		<description></description>
-		<system_version></system_version>
-		<change_set>
-			<system_revision></system_revision>
-			<modified_methods>
-				<method id="">
-					<signature></signature>
-					<file></file>
-				</method>
-			</modified_methods>
-		</change_set>
-	</bug_report>
+
 </bug_reports>
