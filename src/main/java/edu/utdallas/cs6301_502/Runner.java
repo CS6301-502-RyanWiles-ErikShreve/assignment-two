@@ -93,12 +93,14 @@ class Runner {
 	
 	private void walkFolder(Path path, final IndexWriter writer) throws IOException
 	{
+		System.out.println("Input directory '" + path.toString() + "'...");
+		
 		// Based on code from Lucene demo (https://lucene.apache.org/core/5_4_1/demo/src-html/org/apache/lucene/demo/IndexFiles.html)
 		Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile (Path file, BasicFileAttributes attrs) throws IOException {
 				try {
-					if (file.endsWith(".java"))
+					if (file.toString().endsWith(".java"))
 					{
 						System.out.println("processing " + file.toString());
 					
@@ -109,6 +111,10 @@ class Runner {
 						{
 							indexMethod(writer, m, file);
 						}
+					}
+					else
+					{
+						System.out.println("ignoring " + file.toString());
 					}
 				}
 				catch (IOException ignore)
@@ -136,10 +142,11 @@ class Runner {
 		
 		for (String t : txtElements)
 		{
-			System.out.println(t);
+			//FIXME: do we need to split token? Right now parse may return a space separated set of tokens (like for camelcase).
 			String token = parse(t);
 			if (!token.isEmpty())
 			{
+				System.out.println(t);
 				doc.add(new TextField("body", t, Field.Store.YES));
 			}
 		}
