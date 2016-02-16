@@ -1,7 +1,9 @@
 package edu.utdallas.cs6301_502;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -9,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -47,6 +50,7 @@ class Runner {
 	private static MethodSplitter splitter;
 	
 	private static Set<String> keywordSet = new HashSet<String>();
+	private Set<String> stopWords = new HashSet<String>();
 	
 	private boolean debug = false;
 	
@@ -81,14 +85,43 @@ class Runner {
 		IndexWriter writer = new IndexWriter(dir, iwc);
 
 		
-		Runner r = new Runner();
+		Runner r = new Runner(true);
 		r.walkFolder(Paths.get(baseFolder), writer);
 	}
 	
+	
+	
+	public Runner(boolean debug) 
+	{
+		super();
+		this.debug = debug;
+		loadStopWords();
+	}
+
+
+
 	private void debug(String line) {
 		if (this.debug) {
 			System.out.println(line);
 		}
+	}
+	
+	private void loadStopWords() {
+		ClassLoader classLoader = getClass().getClassLoader();
+		File file = new File(classLoader.getResource("stop_words.xml").getFile());
+		try {
+			BufferedReader reader = new BufferedReader(new FileReader(file));
+			while (reader.ready()) {
+				String line = reader.readLine().trim();
+				if (line.startsWith("<word>") && line.endsWith("</word>"))
+					stopWords.add(line.substring(6, line.length() - 7));
+
+			}
+			reader.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 	}
 	
 	private void walkFolder(Path path, final IndexWriter writer) throws IOException
@@ -142,12 +175,14 @@ class Runner {
 		
 		for (String t : txtElements)
 		{
-			//FIXME: do we need to split token? Right now parse may return a space separated set of tokens (like for camelcase).
-			String token = parse(t);
-			if (!token.isEmpty())
+			List<String> postParseList = parse(t);
+			for (String s : postParseList)
 			{
-				System.out.println(t);
-				doc.add(new TextField("body", t, Field.Store.YES));
+				if (!s.isEmpty())
+				{
+					System.out.println(s);
+					doc.add(new TextField("body", s, Field.Store.YES));
+				}
 			}
 		}
 		
@@ -163,10 +198,11 @@ class Runner {
 		
 	}
 	
-	// FIXME: Still need to remove stopwords
-	private String parse(String text) throws FileNotFoundException, IOException {
-		StringBuilder builder = new StringBuilder();
-
+	// FIXME: This function is checking for more that it probably needs to. Probably no need to look for import/package statements or comments.
+	private List<String> parse(String text) throws FileNotFoundException, IOException {
+		
+		List<String> output = new ArrayList<String>();
+		
 		boolean inDoc = false;
 		boolean hasProcessedPackage = false;
 
@@ -174,7 +210,7 @@ class Runner {
 		text = text.trim();
 
 		if (text.isEmpty()) {
-			return text;
+			return output;
 		}
 
 		// package statement must be the first non-comment line in java
@@ -237,37 +273,27 @@ class Runner {
 
 		// Split CamelCase
 		if (!text.isEmpty()) {
-			StringBuilder lineBuilder = new StringBuilder();
-
 			for (String word : text.split("\\s+")) {
 				if (word.length() > 2) {
-					if (!keywordSet.contains(word)) {
-						lineBuilder.append(word);
-						lineBuilder.append(" ");
+					if (!keywordSet.contains(word.toLowerCase()) && !stopWords.contains(word.toLowerCase())) {
+						output.add(word);
 
 						String[] explodedWord = word.split("(?<!(^|[A-Z]))(?=[A-Z])|(?<!^)(?=[A-Z][a-z])");
 
 						if (explodedWord.length > 1) {
 							for (String w : explodedWord) {
 								if (w.length() > 2) { // Don't include 1 and 2 character words
-									lineBuilder.append(w);
-									lineBuilder.append(" ");
+									output.add(w);
 								}
 							}
 						}
 					}
 				}
 			}
-
-			text = lineBuilder.toString();
-			if (!text.isEmpty()) {					
-				debug(lineBuilder.toString());
-				builder.append(" " + lineBuilder.toString());
-			}
 		}
 
 
-		return builder.toString();
+		return output;
 	}
 
 }
