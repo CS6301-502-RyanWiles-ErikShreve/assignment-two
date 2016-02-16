@@ -147,7 +147,7 @@ class Runner {
 					}
 					else
 					{
-						System.out.println("ignoring " + file.toString());
+						debug("ignoring " + file.toString());
 					}
 				}
 				catch (IOException ignore)
@@ -171,7 +171,7 @@ class Runner {
 		
 		List<String> txtElements = m.getTxtElements();
 		
-		System.out.println("Adding text(s) to body:");
+		debug("Adding text(s) to body:");
 		
 		for (String t : txtElements)
 		{
@@ -180,7 +180,7 @@ class Runner {
 			{
 				if (!s.isEmpty())
 				{
-					System.out.println(s);
+					debug(s);
 					doc.add(new TextField("body", s, Field.Store.YES));
 				}
 			}
@@ -188,11 +188,11 @@ class Runner {
 		
 		if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
 			// New index, so we just add the document (no old document can be there):
-			System.out.println("adding " + m.getName());
+			debug("adding " + m.getName());
 			writer.addDocument(doc);
 		} else {
 			// FIXME: Is the method name enough to uniquely ID a document?
-			System.out.println("updating " + m.getName());
+			debug("updating " + m.getName());
 			writer.updateDocument(new Term("name", m.getName()), doc);
 		}
 		
