@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,6 +17,9 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.Unmarshaller;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -30,6 +34,10 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
+import edu.utdallas.cs6301_502.dto.BugReport;
+import edu.utdallas.cs6301_502.dto.BugReports;
+import edu.utdallas.cs6301_502.dto.ChangeSet;
+import edu.utdallas.cs6301_502.dto.Method;
 import seers.methspl.MethodDoc;
 import seers.methspl.MethodSplitter;
 
@@ -56,37 +64,52 @@ class Runner {
 	
 	private static boolean create = true;
 	
-	public static void main(String... args) throws IOException {
-		// SETUP
+	public static void main(String... args) throws Exception {
+		JAXBContext jaxbContext = JAXBContext.newInstance(BugReports.class);
+		Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
+		StringReader reader = new StringReader(readResourceFile("eclipse-gold-set.xml"));
+		BugReports bugReports = (BugReports) jaxbUnmarshaller.unmarshal(reader);
 
-		keywordSet.addAll(Arrays.asList(JAVA_KEYWORDS));
-		
-		// the root folder where the code is located
-		String baseFolder = args[0];
-		// create the instance of the method splitter
-		splitter = new MethodSplitter(baseFolder);
-
-		String indexPath = args[1];
-		System.out.println("Indexing to directory '" + indexPath + "'...");
-
-		Directory dir = FSDirectory.open(Paths.get(indexPath));
-		Analyzer analyzer = new StandardAnalyzer();
-		IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
-
-		if (create) {
-			// Create a new index in the directory, removing any
-			// previously indexed documents:
-			iwc.setOpenMode(OpenMode.CREATE);
-		} else {
-			// Add new documents to an existing index:
-			iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
-		}		
-
-		IndexWriter writer = new IndexWriter(dir, iwc);
-
-		
-		Runner r = new Runner(true);
-		r.walkFolder(Paths.get(baseFolder), writer);
+		for (BugReport report : bugReports.getBugReports()) {
+			System.out.println("Title: " + report.getTitle());
+			System.out.println("Description: " + report.getDescription());
+			
+			System.out.println("\tSystem Revision: " + report.getChangeSet().getSystemRevision());
+			
+			for (Method method : report.getChangeSet().getModifiedMethods().getMethods()) {
+				System.out.println("\tFile: " + method.getFile());
+			}
+		}
+//		// SETUP
+//
+//		keywordSet.addAll(Arrays.asList(JAVA_KEYWORDS));
+//		
+//		// the root folder where the code is located
+//		String baseFolder = args[0];
+//		// create the instance of the method splitter
+//		splitter = new MethodSplitter(baseFolder);
+//
+//		String indexPath = args[1];
+//		System.out.println("Indexing to directory '" + indexPath + "'...");
+//
+//		Directory dir = FSDirectory.open(Paths.get(indexPath));
+//		Analyzer analyzer = new StandardAnalyzer();
+//		IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+//
+//		if (create) {
+//			// Create a new index in the directory, removing any
+//			// previously indexed documents:
+//			iwc.setOpenMode(OpenMode.CREATE);
+//		} else {
+//			// Add new documents to an existing index:
+//			iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
+//		}		
+//
+//		IndexWriter writer = new IndexWriter(dir, iwc);
+//
+//		
+//		Runner r = new Runner(true);
+//		r.walkFolder(Paths.get(baseFolder), writer);
 	}
 	
 	
@@ -122,6 +145,22 @@ class Runner {
 			e.printStackTrace();
 		}
 
+	}
+	
+	private static String readResourceFile(String resourceName) {
+		ClassLoader classLoader = Runner.class.getClassLoader();
+		File file = new File(classLoader.getResource(resourceName).getFile());
+		StringBuilder builder = new StringBuilder();
+		try {
+			BufferedReader reader = new BufferedReader(new FileReader(file));
+			while (reader.ready()) {
+				builder.append(reader.readLine());
+			}
+			reader.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return builder.toString();
 	}
 	
 	private void walkFolder(Path path, final IndexWriter writer) throws IOException
