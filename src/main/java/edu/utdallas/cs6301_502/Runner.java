@@ -54,81 +54,67 @@ class Runner {
 			"char", "final", "interface", "static", "void",
 			"class", "finally", "long", "strictfp", "volatile",
 			"const", "float", "native", "super", "while", "null", "true", "false" };
-	
+
 	private static MethodSplitter splitter;
-	
+
 	private static Set<String> keywordSet = new HashSet<String>();
 	private Set<String> stopWords = new HashSet<String>();
-	
-	private boolean debug = false;
-	
-	private static boolean create = true;
-	
-	public static void main(String... args) throws Exception {
-		JAXBContext jaxbContext = JAXBContext.newInstance(BugReports.class);
-		Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-		StringReader reader = new StringReader(readResourceFile("eclipse-gold-set.xml"));
-		BugReports bugReports = (BugReports) jaxbUnmarshaller.unmarshal(reader);
 
-		for (BugReport report : bugReports.getBugReports()) {
-			System.out.println("Title: " + report.getTitle());
-			System.out.println("Description: " + report.getDescription());
-			
-			System.out.println("\tSystem Revision: " + report.getChangeSet().getSystemRevision());
-			
-			for (Method method : report.getChangeSet().getModifiedMethods().getMethods()) {
-				System.out.println("\tFile: " + method.getFile());
-			}
-		}
-//		// SETUP
-//
-//		keywordSet.addAll(Arrays.asList(JAVA_KEYWORDS));
-//		
-//		// the root folder where the code is located
-//		String baseFolder = args[0];
-//		// create the instance of the method splitter
-//		splitter = new MethodSplitter(baseFolder);
-//
-//		String indexPath = args[1];
-//		System.out.println("Indexing to directory '" + indexPath + "'...");
-//
-//		Directory dir = FSDirectory.open(Paths.get(indexPath));
-//		Analyzer analyzer = new StandardAnalyzer();
-//		IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
-//
-//		if (create) {
-//			// Create a new index in the directory, removing any
-//			// previously indexed documents:
-//			iwc.setOpenMode(OpenMode.CREATE);
-//		} else {
-//			// Add new documents to an existing index:
-//			iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
-//		}		
-//
-//		IndexWriter writer = new IndexWriter(dir, iwc);
-//
-//		
-//		Runner r = new Runner(true);
-//		r.walkFolder(Paths.get(baseFolder), writer);
+	private boolean debug = false;
+
+	private static boolean create = true;
+
+	public static void main(String... args) throws Exception {
+				// SETUP
+		
+				keywordSet.addAll(Arrays.asList(JAVA_KEYWORDS));
+				
+				// the root folder where the code is located
+				String baseFolder = args[0];
+				// create the instance of the method splitter
+				splitter = new MethodSplitter(baseFolder);
+		
+				String indexPath = args[1];
+				System.out.println("Indexing to directory '" + indexPath + "'...");
+		
+				Directory dir = FSDirectory.open(Paths.get(indexPath));
+				Analyzer analyzer = new StandardAnalyzer();
+				IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+		
+				if (create) {
+					// Create a new index in the directory, removing any
+					// previously indexed documents:
+					iwc.setOpenMode(OpenMode.CREATE);
+				} else {
+					// Add new documents to an existing index:
+					iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
+				}		
+		
+				IndexWriter writer = new IndexWriter(dir, iwc);
+		
+				
+				Runner r = new Runner(true);
+				r.walkFolder(Paths.get(baseFolder), writer);
 	}
-	
-	
-	
-	public Runner(boolean debug) 
-	{
+
+	public Runner(boolean debug) {
 		super();
 		this.debug = debug;
 		loadStopWords();
+		try {
+			BugReports bugReports = loadBugReports("eclipse-gold-set.xml");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 	}
-
-
 
 	private void debug(String line) {
 		if (this.debug) {
 			System.out.println(line);
 		}
 	}
-	
+
 	private void loadStopWords() {
 		ClassLoader classLoader = getClass().getClassLoader();
 		File file = new File(classLoader.getResource("stop_words.xml").getFile());
@@ -146,9 +132,30 @@ class Runner {
 		}
 
 	}
-	
-	private static String readResourceFile(String resourceName) {
-		ClassLoader classLoader = Runner.class.getClassLoader();
+
+	private BugReports loadBugReports(String resourceFile) throws Exception {
+		JAXBContext jaxbContext = JAXBContext.newInstance(BugReports.class);
+		Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
+		StringReader reader = new StringReader(readResourceFile(resourceFile));
+		BugReports bugReports = (BugReports) jaxbUnmarshaller.unmarshal(reader);
+
+		if (debug) {
+			for (BugReport report : bugReports.getBugReports()) {
+				System.out.println("Title: " + report.getTitle());
+				System.out.println("Description: " + report.getDescription());
+
+				System.out.println("\tSystem Revision: " + report.getChangeSet().getSystemRevision());
+
+				for (Method method : report.getChangeSet().getModifiedMethods().getMethods()) {
+					System.out.println("\tFile: " + method.getFile());
+				}
+			}
+		}
+		return bugReports;
+	}
+
+	private String readResourceFile(String resourceName) {
+		ClassLoader classLoader = this.getClass().getClassLoader();
 		File file = new File(classLoader.getResource(resourceName).getFile());
 		StringBuilder builder = new StringBuilder();
 		try {
@@ -162,69 +169,58 @@ class Runner {
 		}
 		return builder.toString();
 	}
-	
-	private void walkFolder(Path path, final IndexWriter writer) throws IOException
-	{
+
+	private void walkFolder(Path path, final IndexWriter writer) throws IOException {
 		System.out.println("Input directory '" + path.toString() + "'...");
-		
+
 		// Based on code from Lucene demo (https://lucene.apache.org/core/5_4_1/demo/src-html/org/apache/lucene/demo/IndexFiles.html)
 		Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
 			@Override
-			public FileVisitResult visitFile (Path file, BasicFileAttributes attrs) throws IOException {
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 				try {
-					if (file.toString().endsWith(".java"))
-					{
+					if (file.toString().endsWith(".java")) {
 						System.out.println("processing " + file.toString());
-					
+
 						File f = file.toFile();
 						List<MethodDoc> methods = splitter.splitIntoMethods(f);
-					
-						for (MethodDoc m : methods)
-						{
+
+						for (MethodDoc m : methods) {
 							indexMethod(writer, m, file);
 						}
-					}
-					else
-					{
+					} else {
 						debug("ignoring " + file.toString());
 					}
-				}
-				catch (IOException ignore)
-				{
+				} catch (IOException ignore) {
 					System.out.println("Could not index: " + file);
 				}
 				return FileVisitResult.CONTINUE;
 			}
-			
+
 		});
 	}
-	
-	private void indexMethod(IndexWriter writer, MethodDoc m, Path path) throws IOException
-	{
+
+	private void indexMethod(IndexWriter writer, MethodDoc m, Path path) throws IOException {
 		Document doc = new Document();
 		Field nameField = new StringField("name", m.getName(), Field.Store.YES);
 		doc.add(nameField);
 
 		Field fileNameField = new StringField("file", path.toString(), Field.Store.YES);
 		doc.add(fileNameField);
-		
+
 		List<String> txtElements = m.getTxtElements();
-		
+
 		debug("Adding text(s) to body:");
-		
-		for (String t : txtElements)
-		{
+
+		for (String t : txtElements) {
 			List<String> postParseList = parse(t);
-			for (String s : postParseList)
-			{
-				if (!s.isEmpty())
-				{
+			for (String s : postParseList) {
+				if (!s.isEmpty()) {
 					debug(s);
 					doc.add(new TextField("body", s, Field.Store.YES));
 				}
 			}
 		}
-		
+
 		if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
 			// New index, so we just add the document (no old document can be there):
 			debug("adding " + m.getName());
@@ -234,17 +230,16 @@ class Runner {
 			debug("updating " + m.getName());
 			writer.updateDocument(new Term("name", m.getName()), doc);
 		}
-		
+
 	}
-	
+
 	// FIXME: This function is checking for more that it probably needs to. Probably no need to look for import/package statements or comments.
 	private List<String> parse(String text) throws FileNotFoundException, IOException {
-		
+
 		List<String> output = new ArrayList<String>();
-		
+
 		boolean inDoc = false;
 		boolean hasProcessedPackage = false;
-
 
 		text = text.trim();
 
@@ -330,7 +325,6 @@ class Runner {
 				}
 			}
 		}
-
 
 		return output;
 	}
