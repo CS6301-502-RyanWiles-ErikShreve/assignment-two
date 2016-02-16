@@ -165,9 +165,9 @@ class Runner {
 		Document doc = new Document();
 		Field nameField = new StringField("name", m.getName(), Field.Store.YES);
 		doc.add(nameField);
-		
-		Field pathField = new StringField("path", path.toString(), Field.Store.YES);
-		doc.add(pathField);
+
+		Field fileNameField = new StringField("file", path.toString(), Field.Store.YES);
+		doc.add(fileNameField);
 		
 		List<String> txtElements = m.getTxtElements();
 		
