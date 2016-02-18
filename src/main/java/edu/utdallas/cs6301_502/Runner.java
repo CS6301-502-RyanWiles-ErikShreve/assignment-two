@@ -21,22 +21,8 @@ import java.util.Set;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
 
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.IndexWriterConfig.OpenMode;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
-
 import edu.utdallas.cs6301_502.dto.BugReport;
 import edu.utdallas.cs6301_502.dto.BugReports;
-import edu.utdallas.cs6301_502.dto.ChangeSet;
 import edu.utdallas.cs6301_502.dto.Method;
 import seers.methspl.MethodDoc;
 import seers.methspl.MethodSplitter;
@@ -56,53 +42,43 @@ class Runner {
 			"const", "float", "native", "super", "while", "null", "true", "false" };
 
 	private static MethodSplitter splitter;
+	private static LuceneUtil luceneUtil;
 
 	private static Set<String> keywordSet = new HashSet<String>();
 	private Set<String> stopWords = new HashSet<String>();
+	
+	private BugReports bugReports;
 
-	private boolean debug = false;
-
+	private static boolean debug = false;
 	private static boolean create = true;
 
+	
 	public static void main(String... args) throws Exception {
-				// SETUP
+		String baseFolder = args[0];
+		String indexPath = args[1];
+		String goldSetFile = args[2];
 		
-				keywordSet.addAll(Arrays.asList(JAVA_KEYWORDS));
-				
-				// the root folder where the code is located
-				String baseFolder = args[0];
-				// create the instance of the method splitter
-				splitter = new MethodSplitter(baseFolder);
-		
-				String indexPath = args[1];
-				System.out.println("Indexing to directory '" + indexPath + "'...");
-		
-				Directory dir = FSDirectory.open(Paths.get(indexPath));
-				Analyzer analyzer = new StandardAnalyzer();
-				IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
-		
-				if (create) {
-					// Create a new index in the directory, removing any
-					// previously indexed documents:
-					iwc.setOpenMode(OpenMode.CREATE);
-				} else {
-					// Add new documents to an existing index:
-					iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
-				}		
-		
-				IndexWriter writer = new IndexWriter(dir, iwc);
-		
-				
-				Runner r = new Runner(true);
-				r.walkFolder(Paths.get(baseFolder), writer);
+		luceneUtil = new LuceneUtil(create, indexPath);
+		// SETUP
+
+		keywordSet.addAll(Arrays.asList(JAVA_KEYWORDS));
+
+		// the root folder where the code is located
+		// create the instance of the method splitter
+		splitter = new MethodSplitter(baseFolder);
+
+		System.out.println("Indexing to directory '" + indexPath + "'...");
+
+		Runner r = new Runner(true, goldSetFile);
+		r.walkFolder(Paths.get(baseFolder));
 	}
 
-	public Runner(boolean debug) {
+	public Runner(boolean debug, String goldSetFile) {
 		super();
 		this.debug = debug;
 		loadStopWords();
 		try {
-			BugReports bugReports = loadBugReports("eclipse-gold-set.xml");
+			bugReports = loadBugReports(goldSetFile);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -170,7 +146,7 @@ class Runner {
 		return builder.toString();
 	}
 
-	private void walkFolder(Path path, final IndexWriter writer) throws IOException {
+	private void walkFolder(Path path) throws IOException {
 		System.out.println("Input directory '" + path.toString() + "'...");
 
 		// Based on code from Lucene demo (https://lucene.apache.org/core/5_4_1/demo/src-html/org/apache/lucene/demo/IndexFiles.html)
@@ -185,7 +161,7 @@ class Runner {
 						List<MethodDoc> methods = splitter.splitIntoMethods(f);
 
 						for (MethodDoc m : methods) {
-							indexMethod(writer, m, file);
+							indexMethod(m, file);
 						}
 					} else {
 						debug("ignoring " + file.toString());
@@ -199,38 +175,23 @@ class Runner {
 		});
 	}
 
-	private void indexMethod(IndexWriter writer, MethodDoc m, Path path) throws IOException {
-		Document doc = new Document();
-		Field nameField = new StringField("name", m.getName(), Field.Store.YES);
-		doc.add(nameField);
+	private void indexMethod(MethodDoc m, Path path) throws IOException {
+		String fileName = path.toString();
+		String methodName = m.getName();
 
-		Field fileNameField = new StringField("file", path.toString(), Field.Store.YES);
-		doc.add(fileNameField);
-
-		List<String> txtElements = m.getTxtElements();
-
-		debug("Adding text(s) to body:");
-
-		for (String t : txtElements) {
-			List<String> postParseList = parse(t);
-			for (String s : postParseList) {
-				if (!s.isEmpty()) {
-					debug(s);
-					doc.add(new TextField("body", s, Field.Store.YES));
+		debug("fileName: " + fileName + "; methodName: " + methodName);
+		
+		StringBuilder builder = new StringBuilder();
+		
+		for (String splitterMethodText : m.getTxtElements()) {
+			for (String str : parse(splitterMethodText)) {
+				if (!str.isEmpty()) {
+					builder.append(str + " ");
 				}
 			}
 		}
 
-		if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
-			// New index, so we just add the document (no old document can be there):
-			debug("adding " + m.getName());
-			writer.addDocument(doc);
-		} else {
-			// FIXME: Is the method name enough to uniquely ID a document?
-			debug("updating " + m.getName());
-			writer.updateDocument(new Term("name", m.getName()), doc);
-		}
-
+		luceneUtil.indexDocument(fileName, methodName, builder.toString());
 	}
 
 	// FIXME: This function is checking for more that it probably needs to. Probably no need to look for import/package statements or comments.

@@ -1,9 +1,8 @@
 package edu.utdallas.cs6301_502;
 
 import java.io.File;
-import java.net.URI;
+import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,13 +12,16 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
-import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
+import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -28,72 +30,93 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
 public class LuceneUtil {
-	private String indexDir;
-
+	private boolean createMode;
 	private Path indexPath;
+	private Directory directory;
 
-	public LuceneUtil(String indexDir) {
-		this.indexDir = indexDir;
+	public LuceneUtil(boolean createMode, String indexDir) throws IOException {
+		this.createMode = createMode;
 		indexPath = new File(indexDir).toPath();
+
+		directory = FSDirectory.open(indexPath);
 	}
 
 	public static void main(String[] args) {
-		LuceneUtil parser = new LuceneUtil("/Users/rwiles/lucene/index");
-
-		parser.indexDocument("document title or id goes here", "document body that you'll query on goes here");
-		List<Document> docs = parser.queryLucene("your query goes here");
-		for (Document doc : docs) {
-			System.out.println("Found matching document with the following title: " + doc.getField("title").stringValue());
-			
-		}
-	}
-
-	public void indexDocument(String title, String body) {
+		LuceneUtil parser;
 		try {
-			Directory directory = FSDirectory.open(indexPath);
-			Analyzer analyzer = new StandardAnalyzer();
-			IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
-			iwc.setOpenMode(OpenMode.CREATE);//  package create  Represents the creation or appended to the existing index database  
-			IndexWriter indexWriter = new IndexWriter(directory, iwc);//  to write the document to the index database  
+			parser = new LuceneUtil(true, "/Users/rwiles/lucene/index");
 
-			Document document = new Document();
-			Field FieldPath = new StoredField("title", title);
-			Field FieldBody = new TextField("body", body, Store.YES);
-			document.add(FieldPath);
-			document.add(FieldBody);
-			indexWriter.addDocument(document);
+			parser.indexDocument("my file", "document title or id goes here", "document body that you'll query on goes here");
+			List<Document> docs = parser.queryLucene("your query goes here");
+			for (Document doc : docs) {
+				System.out.println("Found matching document with the following title: " + doc.getField("title").stringValue());
 
-			indexWriter.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	public List<Document> queryLucene(String queryString) {
-		IndexSearcher searcher;
-		URI indexUri = new File(indexDir).toURI();
-		List<Document> docs = new ArrayList<Document>();
-		
-		try {
-			IndexReader reader = DirectoryReader.open(FSDirectory.open(Paths.get(indexUri)));
-			searcher = new IndexSearcher(reader);
-			Analyzer analyzer = new StandardAnalyzer();
-
-			QueryParser parser = new QueryParser("body", analyzer);
-
-			Query query = parser.parse(queryString);
-			TopDocs results = searcher.search(query, 60);
-			ScoreDoc[] hits = results.scoreDocs;
-
-			for (ScoreDoc scoreDoc : hits) {
-				docs.add(searcher.doc(scoreDoc.doc));
-				System.out.println(scoreDoc.score);
 			}
-
-			reader.close();
-		} catch (Exception e) {
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (ParseException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public void indexDocument(String fileName, String title, String body) throws IOException {
+		Analyzer analyzer = new StandardAnalyzer();
+		IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+
+		if (createMode) {
+			// Create a new index in the directory, removing any previously indexed documents:
+			iwc.setOpenMode(OpenMode.CREATE);
+		} else {
+			// Add new documents to an existing index:
+			iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
+		}
+
+		IndexWriter indexWriter = new IndexWriter(directory, iwc);//  to write the document to the index database  
+
+		String id = fileName + "_" + title;
+		
+		Document document = new Document();
+		Field idField = new StringField("id", id, Store.NO);
+		document.add(idField);
+
+		Field fileField = new StoredField("fileName", fileName);
+		document.add(fileField);
+
+		Field titleField = new StringField("title", title, Store.YES);
+		document.add(titleField);
+
+		Field bodyField = new TextField("body", body, Store.YES);
+		document.add(bodyField);
+		
+		if (indexWriter.getConfig().getOpenMode() == OpenMode.CREATE) {
+			indexWriter.addDocument(document);
+		} else {
+			indexWriter.updateDocument(new Term("id", id), document);
+		}
+
+		indexWriter.close();
+	}
+
+	public List<Document> queryLucene(String queryString) throws IOException, ParseException {
+		IndexSearcher searcher;
+		List<Document> docs = new ArrayList<Document>();
+
+		IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath));
+		searcher = new IndexSearcher(reader);
+		Analyzer analyzer = new StandardAnalyzer();
+
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(new String[] {"fileName", "title", "body"}, analyzer);
+
+		Query query = mfqp.parse(queryString);
+		TopDocs results = searcher.search(query, 60);
+		ScoreDoc[] hits = results.scoreDocs;
+
+		for (ScoreDoc scoreDoc : hits) {
+			docs.add(searcher.doc(scoreDoc.doc));
+//			System.out.println(scoreDoc.score);
+		}
+
+		reader.close();
 		return docs;
 	}
 
