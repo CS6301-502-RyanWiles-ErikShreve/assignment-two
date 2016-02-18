@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.URI;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,9 +28,16 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
@@ -62,8 +70,10 @@ class Runner {
 
 	private boolean debug = false;
 
-	private static boolean create = true;
+	private static boolean create = false;
 
+	private static String indexDir;
+	
 	public static void main(String... args) throws Exception {
 				// SETUP
 		
@@ -75,6 +85,7 @@ class Runner {
 				splitter = new MethodSplitter(baseFolder);
 		
 				String indexPath = args[1];
+				indexDir = indexPath;
 				System.out.println("Indexing to directory '" + indexPath + "'...");
 		
 				Directory dir = FSDirectory.open(Paths.get(indexPath));
@@ -94,7 +105,8 @@ class Runner {
 		
 				
 				Runner r = new Runner(true);
-				r.walkFolder(Paths.get(baseFolder), writer);
+				//r.walkFolder(Paths.get(baseFolder), writer);
+				writer.close();
 	}
 
 	public Runner(boolean debug) {
@@ -133,6 +145,34 @@ class Runner {
 
 	}
 
+	private List<Document> queryLucene(String queryString) {
+		IndexSearcher searcher;
+		URI indexUri = new File(indexDir).toURI();
+		List<Document> docs = new ArrayList<Document>();
+		
+		try {
+			IndexReader reader = DirectoryReader.open(FSDirectory.open(Paths.get(indexUri)));
+			searcher = new IndexSearcher(reader);
+			Analyzer analyzer = new StandardAnalyzer();
+
+			QueryParser parser = new QueryParser("body", analyzer);
+
+			Query query = parser.parse(queryString);
+			TopDocs results = searcher.search(query, 60);
+			ScoreDoc[] hits = results.scoreDocs;
+
+			for (ScoreDoc scoreDoc : hits) {
+				docs.add(searcher.doc(scoreDoc.doc));
+				System.out.println(scoreDoc.score + " " + searcher.doc(scoreDoc.doc).getField("name").stringValue());
+			}
+
+			reader.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return docs;
+	}
+	
 	private BugReports loadBugReports(String resourceFile) throws Exception {
 		JAXBContext jaxbContext = JAXBContext.newInstance(BugReports.class);
 		Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
@@ -149,6 +189,12 @@ class Runner {
 				for (Method method : report.getChangeSet().getModifiedMethods().getMethods()) {
 					System.out.println("\tFile: " + method.getFile());
 				}
+				
+				System.out.println("Performing Query");
+				String query = report.getTitle() + " " + report.getDescription();
+				query = query.replaceAll("\\+|-|&\\||!|\\(|\\)|\\{|\\}|\\[|\\]|\\^|\"|~|\\*|\\?|:|\\)", " ").trim();
+				queryLucene(query);
+				
 			}
 		}
 		return bugReports;
