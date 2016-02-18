@@ -316,7 +316,7 @@ class Runner {
 
 						if (explodedWord.length > 1) {
 							for (String w : explodedWord) {
-								if (w.length() > 2) { // Don't include 1 and 2 character words
+								if (w.length() > 2 && !stopWords.contains(word.toLowerCase())) { 
 									output.add(w);
 								}
 							}
