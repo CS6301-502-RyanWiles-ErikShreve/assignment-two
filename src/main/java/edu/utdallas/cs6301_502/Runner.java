@@ -29,26 +29,12 @@ import seers.methspl.MethodSplitter;
 
 class Runner {
 
-	private static final String[] JAVA_KEYWORDS = new String[] {
-			"abstract", "continue", "for", "new", "switch",
-			"assert", "default", "goto", "synchronized",
-			"boolean", "do", "if", "private", "this",
-			"break", "double", "implements", "protected", "throw",
-			"byte", "else", "public", "throws",
-			"case", "enum", "instanceof", "return", "transient",
-			"catch", "extends", "int", "short", "try",
-			"char", "final", "interface", "static", "void",
-			"class", "finally", "long", "strictfp", "volatile",
-			"const", "float", "native", "super", "while", "null", "true", "false" };
-
 	private static MethodSplitter splitter;
-	private static LuceneUtil luceneUtil;
-
-	private static Set<String> keywordSet = new HashSet<String>();
-	private Set<String> stopWords = new HashSet<String>();
-	
+	private static LuceneUtil luceneUtil;	
+	private TextScrubber textScrubber;	
 	private BugReports bugReports;
 
+	
 	private static boolean debug = false;
 	private static boolean create = true;
 
@@ -59,9 +45,6 @@ class Runner {
 		String goldSetFile = args[2];
 		
 		luceneUtil = new LuceneUtil(create, indexPath);
-		// SETUP
-
-		keywordSet.addAll(Arrays.asList(JAVA_KEYWORDS));
 
 		// the root folder where the code is located
 		// create the instance of the method splitter
@@ -76,8 +59,11 @@ class Runner {
 	public Runner(boolean debug, String goldSetFile) {
 		super();
 		this.debug = debug;
-		loadStopWords();
+
 		try {
+			// SETUP
+			textScrubber = new TextScrubber(loadWords("stop_words.xml"), loadWords("java_keywords.xml"), 2);
+			
 			bugReports = loadBugReports(goldSetFile);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -86,20 +72,23 @@ class Runner {
 	}
 
 	private void debug(String line) {
-		if (this.debug) {
+		if (Runner.debug) {
 			System.out.println(line);
 		}
 	}
 
-	private void loadStopWords() {
+	private Set<String> loadWords(String resource) {
+		Set<String> words = new HashSet<String>();
+		
 		ClassLoader classLoader = getClass().getClassLoader();
-		File file = new File(classLoader.getResource("stop_words.xml").getFile());
+		File file = new File(classLoader.getResource(resource).getFile());
+		
 		try {
 			BufferedReader reader = new BufferedReader(new FileReader(file));
 			while (reader.ready()) {
 				String line = reader.readLine().trim();
 				if (line.startsWith("<word>") && line.endsWith("</word>"))
-					stopWords.add(line.substring(6, line.length() - 7));
+					words.add(line.substring(6, line.length() - 7));
 
 			}
 			reader.close();
@@ -107,6 +96,7 @@ class Runner {
 			e.printStackTrace();
 		}
 
+		return words;
 	}
 
 	private BugReports loadBugReports(String resourceFile) throws Exception {
@@ -184,7 +174,7 @@ class Runner {
 		StringBuilder builder = new StringBuilder();
 		
 		for (String splitterMethodText : m.getTxtElements()) {
-			for (String str : parse(splitterMethodText)) {
+			for (String str : textScrubber.scrub(splitterMethodText)) {
 				if (!str.isEmpty()) {
 					builder.append(str + " ");
 				}
@@ -194,100 +184,5 @@ class Runner {
 		luceneUtil.indexDocument(fileName, methodName, builder.toString());
 	}
 
-	// FIXME: This function is checking for more that it probably needs to. Probably no need to look for import/package statements or comments.
-	private List<String> parse(String text) throws FileNotFoundException, IOException {
-
-		List<String> output = new ArrayList<String>();
-
-		boolean inDoc = false;
-		boolean hasProcessedPackage = false;
-
-		text = text.trim();
-
-		if (text.isEmpty()) {
-			return output;
-		}
-
-		// package statement must be the first non-comment line in java
-		if (!hasProcessedPackage && text.startsWith("package ")) {
-			hasProcessedPackage = true;
-
-			// Remove package part and process remainder of line (could be a comment)
-			text = text.replaceFirst("package .+;", " ").trim();
-		}
-
-		// import statements must follow the package statement, if present, and come before the rest
-		// comments are allowed in the imports
-		if (text.startsWith("import ")) {
-			// Remove import part and process remainder of line (could be a comment)
-			text = text.replaceFirst("import .+;", "");
-		}
-
-		// check for line with only // comments
-		if (text.startsWith("//")) {
-			text = text.substring(2).trim();
-			//				debug(line);
-		}
-
-		if (inDoc) {
-			if (text.contains("*/")) {
-				inDoc = false;
-				text = text.replace("*/", " ").trim();
-			} else if (text.startsWith("*")) {
-				text = text.substring(1).trim();
-			}
-			//				debug(line);
-		}
-
-		// check for javadoc style comments
-		if (text.startsWith("/**")) {
-			inDoc = true;
-			text = text.substring(3).trim();
-			//				debug(line);
-		}
-
-		// check for c style comments
-		if (text.startsWith("/*")) {
-			inDoc = true;
-			text = text.substring(2).trim();
-			//				debug(line);
-		}
-
-		// explode punctuation to a space
-		text = text.replaceAll("[\\{|\\}|\\(|\\)|;|,|=|+|\\-|*|\"|'|/|\\?|:|<|\\[|\\]|!|\\>|\\^|\\$|\\&\\&|\\|\\||\\.|`|#|~|_]", " ").trim();
-		text = text.replaceAll("\\\\t", " ").trim();
-		text = text.replaceAll("\\\\r", " ").trim();
-		text = text.replaceAll("\\\\n", " ").trim();
-		text = text.replaceAll("\\\\", " ").trim();
-		text = text.replaceAll("(^\\s)[0-9]+\\.[0-9]+", " ").trim(); // decimal numbers
-		text = text.replaceAll("(^\\s)[0-9]+f", " ").trim(); // integer numbers as a float
-		text = text.replaceAll("(^\\s)[0-9]+d", " ").trim(); // integer numbers as a double
-		text = text.replaceAll("(^\\s)0[x|X][0-9a-fA-F]+", " ").trim(); // integer numbers as hex
-		text = text.replaceAll("(^\\s)[0-9]+", " ").trim(); // integer numbers
-		text = text.replaceAll("\\s+", " ");
-
-		// Split CamelCase
-		if (!text.isEmpty()) {
-			for (String word : text.split("\\s+")) {
-				if (word.length() > 2) {
-					if (!keywordSet.contains(word.toLowerCase()) && !stopWords.contains(word.toLowerCase())) {
-						output.add(word);
-
-						String[] explodedWord = word.split("(?<!(^|[A-Z]))(?=[A-Z])|(?<!^)(?=[A-Z][a-z])");
-
-						if (explodedWord.length > 1) {
-							for (String w : explodedWord) {
-								if (w.length() > 2 && !stopWords.contains(word.toLowerCase())) { 
-									output.add(w);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		return output;
-	}
 
 }
