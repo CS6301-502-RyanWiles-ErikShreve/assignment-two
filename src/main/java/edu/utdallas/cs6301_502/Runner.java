@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.lucene.document.Document;
 import org.kohsuke.args4j.Argument;
@@ -222,7 +224,9 @@ class Runner {
 
 	private void walkFolder(Path path) throws IOException {
 		System.out.println("Input directory '" + path.toString() + "'...");
-
+		
+		luceneUtil.openIndexForAdd();
+		
 		// Based on code from Lucene demo (https://lucene.apache.org/core/5_4_1/demo/src-html/org/apache/lucene/demo/IndexFiles.html)
 		Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
 			@Override
@@ -234,9 +238,16 @@ class Runner {
 						File f = file.toFile();
 						List<MethodDoc> methods = splitter.splitIntoMethods(f);
 
+						ExecutorService executor = Executors.newFixedThreadPool(4); // FIXME: make number of threads configurable
+						
 						for (MethodDoc m : methods) {
-							indexMethod(m, file);
+							Runnable methodIndexer = new MethodIndexer(m, file);
+							executor.execute(methodIndexer);
 						}
+						
+						executor.shutdown();
+						while(!executor.isTerminated()){}
+						
 					} else {
 						debug("ignoring " + file.toString());
 					}
@@ -247,26 +258,50 @@ class Runner {
 			}
 
 		});
+		
+		luceneUtil.closeIndexForAdd();
 	}
 
-	private void indexMethod(MethodDoc m, Path path) throws IOException {
-		String fileName = path.toString();
-		String methodName = m.getName();
+	private class MethodIndexer implements Runnable
+	{
+		private MethodDoc m;
+		private Path path;
+		
+			
+	
+		public MethodIndexer(MethodDoc m, Path path) {
+			super();
+			this.m = m;
+			this.path = path;
+		}
 
-		debug("fileName: " + fileName + "; methodName: " + methodName);
+		private void indexMethod() throws IOException {
+			String fileName = path.toString();
+			String methodName = m.getName();
+
+			debug("fileName: " + fileName + "; methodName: " + methodName);
 		
-		StringBuilder builder = new StringBuilder();
+			StringBuilder builder = new StringBuilder();
 		
-		for (String splitterMethodText : m.getTxtElements()) {
-			for (String str : textScrubber.scrub(splitterMethodText)) {
-				if (!str.isEmpty()) {
-					builder.append(str + " ");
+			for (String splitterMethodText : m.getTxtElements()) {
+				for (String str : textScrubber.scrub(splitterMethodText)) {
+					if (!str.isEmpty()) {
+						builder.append(str + " ");
+					}
 				}
+			}
+
+			luceneUtil.indexDocument(fileName, methodName, builder.toString());
+		}
+
+		@Override
+		public void run() {
+			try {
+				indexMethod();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
 
-		luceneUtil.indexDocument(fileName, methodName, builder.toString());
 	}
-
-
 }

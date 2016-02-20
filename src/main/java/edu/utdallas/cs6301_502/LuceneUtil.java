@@ -59,7 +59,10 @@ public class LuceneUtil {
 		}
 	}
 
-	public void indexDocument(String fileName, String title, String body) throws IOException {
+	private IndexWriter indexWriter;
+	
+	public void openIndexForAdd() throws IOException
+	{
 		Analyzer analyzer = new StandardAnalyzer();
 		IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
 
@@ -71,7 +74,16 @@ public class LuceneUtil {
 			iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
 		}
 
-		IndexWriter indexWriter = new IndexWriter(directory, iwc);//  to write the document to the index database  
+		indexWriter = new IndexWriter(directory, iwc);//  to write the document to the index database  
+	}
+	
+	public void closeIndexForAdd() throws IOException
+	{
+		indexWriter.close();
+	}
+	
+	public void indexDocument(String fileName, String title, String body) throws IOException {
+
 
 		String id = fileName + "_" + title;
 		
@@ -93,8 +105,6 @@ public class LuceneUtil {
 		} else {
 			indexWriter.updateDocument(new Term("id", id), document);
 		}
-
-		indexWriter.close();
 	}
 
 	public List<Document> queryLucene(String queryString) throws IOException, ParseException {
