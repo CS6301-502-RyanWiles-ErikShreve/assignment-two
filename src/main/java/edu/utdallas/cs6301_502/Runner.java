@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.lucene.document.Document;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -114,17 +115,13 @@ class Runner {
 		try {
 			// SETUP
 			luceneUtil = new LuceneUtil(create, indexPath);
-
+			textScrubber = new TextScrubber(loadWords("stop_words.xml"), loadWords("java_keywords.xml"), 2);
+			
 			if (!baseFolder.isEmpty())
 			{
-				// 	the root folder where the code is located
-				// create the instance of the method splitter
-				splitter = new MethodSplitter(baseFolder);
-
-				System.out.println("Indexing to directory '" + indexPath + "'...");
+				System.out.println("Indexing to directory '" + indexPath + "'...");				
 			
-				textScrubber = new TextScrubber(loadWords("stop_words.xml"), loadWords("java_keywords.xml"), 2);
-				
+				splitter = new MethodSplitter(baseFolder);	
 				walkFolder(Paths.get(baseFolder));
 			}
 			else
@@ -134,7 +131,24 @@ class Runner {
 			
 			bugReports = loadBugReports(goldSetFile);
 			
-			// TODO: RUN QUERIES			
+			// TODO: RUN QUERIES		
+			for (BugReport bugReport : bugReports.getBugReports())
+			{
+				String query = "";
+				List<String> queryStrings = textScrubber.scrub(bugReport.getTitle() + bugReport.getDescription());
+				for (String q : queryStrings)
+				{
+					query = query + " " + q;
+				}
+				
+				List<Document> docResults = luceneUtil.queryLucene(query);
+				
+				for (Document d : docResults)
+				{
+					System.out.println(d.get("title") + " from " + d.get("fileName"));
+				}
+				
+			}
 						
 		} catch (Exception e) {
 			e.printStackTrace();
