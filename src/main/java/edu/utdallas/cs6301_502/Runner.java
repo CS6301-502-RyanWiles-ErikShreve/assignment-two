@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.lucene.document.Document;
+import org.apache.lucene.queryparser.classic.ParseException;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -133,23 +134,19 @@ class Runner {
 			
 			bugReports = loadBugReports(goldSetFile);
 			
-			// TODO: RUN QUERIES		
+			// RUN QUERIES		
 			for (BugReport bugReport : bugReports.getBugReports())
 			{
-				String query = "";
-				List<String> queryStrings = textScrubber.scrub(bugReport.getTitle() + bugReport.getDescription());
-				for (String q : queryStrings)
-				{
-					query = query + " " + q;
-				}
+				System.out.println("Bug Info: " + bugReport.getTitle());
 				
-				List<Document> docResults = luceneUtil.queryLucene(query);
+				System.out.println("Results from Title + Description:");
+				doQuery(bugReport.getTitle() + bugReport.getDescription());
 				
-				for (Document d : docResults)
-				{
-					System.out.println(d.get("title") + " from " + d.get("fileName"));
-				}
+				System.out.println("Results from Title Only:");
+				doQuery(bugReport.getTitle());
 				
+				System.out.println("Results from Description Only:");
+				doQuery(bugReport.getDescription());	
 			}
 						
 		} catch (Exception e) {
@@ -222,6 +219,24 @@ class Runner {
 		return builder.toString();
 	}
 
+	
+	private void doQuery(String dirtyQueryString) throws IOException, ParseException
+	{
+		String cleanQueryString = "";
+		List<String> queryStrings = textScrubber.scrub(dirtyQueryString);
+		for (String q : queryStrings)
+		{
+			cleanQueryString = cleanQueryString + " " + q;
+		}
+		
+		List<Document> docResults = luceneUtil.queryLucene(cleanQueryString);
+		
+		for (Document d : docResults)
+		{
+			System.out.println(d.get("title") + " from " + d.get("fileName"));
+		}
+	}
+	
 	private void walkFolder(Path path) throws IOException {
 		System.out.println("Input directory '" + path.toString() + "'...");
 		
