@@ -42,6 +42,7 @@ import javax.xml.bind.Unmarshaller;
 import edu.utdallas.cs6301_502.dto.BugReport;
 import edu.utdallas.cs6301_502.dto.BugReports;
 import edu.utdallas.cs6301_502.dto.Method;
+import edu.utdallas.cs6301_502.dto.ModifiedMethods;
 import seers.methspl.MethodDoc;
 import seers.methspl.MethodSplitter;
 
@@ -137,8 +138,13 @@ class Runner {
 			// RUN QUERIES		
 			for (BugReport bugReport : bugReports.getBugReports())
 			{
+				System.out.println("=======================================================================");
 				System.out.println("Bug Info: " + bugReport.getTitle());
-				
+				System.out.println("  Methods Changed: " );
+				for (Method m : bugReport.getChangeSet().getModifiedMethods().getMethods())
+				{
+					System.out.println("  " + m.getSignature() + " from " + m.getFile());
+				}
 				System.out.println("Results from Title + Description:");
 				doQuery(bugReport.getTitle() + bugReport.getDescription());
 				
@@ -240,8 +246,11 @@ class Runner {
 	private void walkFolder(Path path) throws IOException {
 		System.out.println("Input directory '" + path.toString() + "'...");
 		
-		luceneUtil.openIndexForAdd();
+		long start = System.nanoTime();
 		
+		luceneUtil.openIndexForAdd();
+		ExecutorService executor = Executors.newFixedThreadPool(4); // FIXME: make number of threads configurable
+
 		// Based on code from Lucene demo (https://lucene.apache.org/core/5_4_1/demo/src-html/org/apache/lucene/demo/IndexFiles.html)
 		Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
 			@Override
@@ -253,15 +262,11 @@ class Runner {
 						File f = file.toFile();
 						List<MethodDoc> methods = splitter.splitIntoMethods(f);
 
-						ExecutorService executor = Executors.newFixedThreadPool(4); // FIXME: make number of threads configurable
-						
+							
 						for (MethodDoc m : methods) {
 							Runnable methodIndexer = new MethodIndexer(m, file);
 							executor.execute(methodIndexer);
-						}
-						
-						executor.shutdown();
-						while(!executor.isTerminated()){}
+						}						
 						
 					} else {
 						debug("ignoring " + file.toString());
@@ -274,7 +279,13 @@ class Runner {
 
 		});
 		
+		executor.shutdown();
+		while(!executor.isTerminated()){}
+		
 		luceneUtil.closeIndexForAdd();
+		
+		long duration = System.nanoTime() - start;
+		debug("Index time (ns): " + duration);
 	}
 
 	private class MethodIndexer implements Runnable

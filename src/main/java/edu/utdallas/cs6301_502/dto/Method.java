@@ -19,7 +19,7 @@ public class Method {
 		this.id = id;
 	}
 
-	public String setSignature() {
+	public String getSignature() {
 		return signature;
 	}
 
