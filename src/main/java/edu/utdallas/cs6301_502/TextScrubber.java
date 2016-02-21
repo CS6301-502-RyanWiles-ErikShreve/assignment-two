@@ -11,16 +11,18 @@ public class TextScrubber {
 	private Set<String> stopWords = new HashSet<String>();
 	private int minWordSize;
 	
-	
+
 	public TextScrubber(Set<String> keywordSet, Set<String> stopWords, int minWordSize) {
 		super();
 		this.keywordSet = keywordSet;
 		this.stopWords = stopWords;
-		this.minWordSize = minWordSize;
+		this.minWordSize = minWordSize;		
 	}
 	
 	public List<String> scrub(String text)  {
 
+		PorterStemmer stemmer = new PorterStemmer();
+		
 		List<String> output = new ArrayList<String>();
 
 		text = text.trim();
@@ -62,14 +64,14 @@ public class TextScrubber {
 			for (String word : text.split("\\s+")) {
 				if (word.length() >= minWordSize) {
 					if (!keywordSet.contains(word.toLowerCase()) && !stopWords.contains(word.toLowerCase())) {
-						output.add(word);
+						output.add(stemmer.stem(word));
 
 						String[] explodedWord = word.split("(?<!(^|[A-Z]))(?=[A-Z])|(?<!^)(?=[A-Z][a-z])");
 
 						if (explodedWord.length > 1) {
 							for (String w : explodedWord) {
 								if (w.length() >= minWordSize && !stopWords.contains(word.toLowerCase())) { 
-									output.add(w);
+									output.add(stemmer.stem(w));
 								}
 							}
 						}
