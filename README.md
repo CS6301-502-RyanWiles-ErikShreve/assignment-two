@@ -16,6 +16,8 @@ that are all present in 4.5 and fixed in 4.5.1, and have commit messages referen
 
 ### Apache Ant
 
+[Tag for the 1.9.4 release of Ant:](https://github.com/apache/ant/commit/1c927b15af84cfce315a0ef6f4db60c7d47c2c50)
+[5 specific bugs](https://bz.apache.org/bugzilla/buglist.cgi?bug_id=57965%2C58886%2C57789%2C57048%2C57822&bug_id_type=anyexact&bug_status=RESOLVED&product=Ant&query_format=advanced&resolution=FIXED&version=1.9.4)
 
 ## Use of CS6301-method-splitter
 

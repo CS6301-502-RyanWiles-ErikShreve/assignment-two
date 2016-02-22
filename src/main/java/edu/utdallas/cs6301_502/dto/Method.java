@@ -1,5 +1,6 @@
 package edu.utdallas.cs6301_502.dto;
 
+import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
@@ -14,7 +15,7 @@ public class Method {
 		return id;
 	}
 
-	@XmlElement(name="id")
+	@XmlAttribute(name="id")
 	public void setId(String id) {
 		this.id = id;
 	}

@@ -1,16 +1,27 @@
 package edu.utdallas.cs6301_502.dto;
 
+import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement(name="bug_report")
 public class BugReport {
 	
+	private String id;
 	private String title;
 	private String description;
 	private String systemVersion;
 	private String unitTest;
 	private ChangeSet changeSet;
+	
+	public String getId() {
+		return id;
+	}
+	
+	@XmlAttribute(name="id")
+	public void setId(String id) {
+		this.id = id;
+	}
 	
 	public String getTitle() {
 		return title;
