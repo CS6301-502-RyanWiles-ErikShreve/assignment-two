@@ -1,424 +1,170 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bug_reports>
 
-	<bug_report id="50769">
-		<title>SCP needs to align with the COPY task and support nested
-			resource collections
-		</title>
+	<bug_report id="57965">
+		<title>Multiple resources in the same union are collapsed if the source file is the same, even if the paths are different</title>
 		<description>
-			Ant 1.7 provided an updated COPY task that allows passing
-			in resource
-			collections, rather than exclusively filesets. This change
-			hasn't
-			made it to SCP.
+			This is a real example which hit us in a build but I condensed it down to the following:
 
-			The situation I'm in right now is that I need to
-			code an Ant macro that
-			uses COPY or SCP depending on the target files'
-			location. My resource
-			collection may be a "SORT" collection. That
-			works wonderfully for
-			COPY, fails for SCP. SCP wouldn't even accept a
-			SORT-wrapped fileset:
+    &lt;?xml version="1.0"?&gt;
+    &lt;project name="release" default="test"&gt;
+        &lt;target name="test"&gt;
+            &lt;mkdir dir="build"/&gt;
+            &lt;copy todir="build"&gt;
+                &lt;union&gt;
+                    &lt;fileset dir="src" includes="config/log4j.properties" /&gt;
+                    &lt;fileset dir="src/config" includes="log4j.properties"/&gt;
+                &lt;/union&gt;
+            &lt;/copy&gt;
+        &lt;/target&gt;
 
-			&lt;sort id="mycollection"&gt;
-			&lt;fileset dir="some-directory" /&gt;
-			&lt;/sort&gt;
-			.
-			.
-			.
-			&lt;scp&gt;
-			&lt;resources refid="mycollection" /&gt;
-			&lt;/scp&gt;
+        &lt;target name="clean"&gt;
+            &lt;delete dir="build"/&gt;
+        &lt;/target&gt;
+    &lt;/project&gt;
 
-			(Claiming that "mycollection"
-			is not a fileset reference)
+So the two resources have different paths:
+    config/log4j.properties
+    log4j.properties
+
+But despite their paths being different, the second of these seems to be deduplicated away by the &lt;union&gt;.
+
+I looked at the code in Union and decided that it was probably using the default equals() on FileResource, which does indeed only look at the full file path. Perhaps that should be taking into account the base directory instead.
 		</description>
-		<system_version>1.8.1</system_version>
+		<system_version>1.9.4</system_version>
 		<change_set>
-			<system_revision></system_revision>
+			<system_revision>592aa749733cf20247ebfa5dd9dd571216e71bf3</system_revision>
 			<modified_methods>
-				<method id="void_Scp.addFileset_FileSet">
-					<signature>void addFileset(final FileSet set)</signature>
-					<file>src/main/org/apache/tools/ant/taskdefs/optional/ssh/Scp.java</file>
+				<method id="">
+					<signature>int compareTo(Resource)</signature>
+					<file>src/main/org/apache/tools/ant/types/resources/FileResource.java</file>
+				</method>
+			</modified_methods>
+		</change_set>
+		<unit_test></unit_test>
+	</bug_report>
+
+	<bug_report id="58886">
+		<title>Targets are called several times</title>
+		<description>
+			Created attachment 33460 [details]
+Scripts reproducing the issue.
+
+Under certain conditions, some targets are called two times.
+The attached archive contains some simple scripts to reproduce the issue (build file is main.xml). It involves the usage of an extension point, and importing scripts in separated folders.
+The script fails if the target bar is called two times, succeed otherwise.
+
+The bug appears since version 1.9.4 (1.9.3 works fine, 1.9.6 still contains the issue).
+The bug seems OS independent and can be reproduce on Windows or MacOSX.
+		</description>
+		<system_version>1.9.4</system_version>
+		<change_set>
+			<system_revision>7046631e9a490e203f61b419a272aed0d428506c</system_revision>
+			<modified_methods>
+				<method id="">
+					<signature>Resource getFileAttributeResource()</signature>
+					<file>src/main/org/apache/tools/ant/taskdefs/ImportTask.java</file>
+				</method>
+			</modified_methods>
+		</change_set>
+		<unit_test></unit_test>
+	</bug_report>
+
+	<bug_report id="57789">
+		<title>Add possibility to send email with CC and BCC via MailLogger</title>
+		<description>
+			MailLogger does not allow to send emails with CC and BCC.
+		</description>
+		<system_version>1.9.4</system_version>
+		<change_set>
+			<system_revision>1a584200e27de7867d7f613ff9c910dc0cc9730a
+			</system_revision>
+			<modified_methods>
+				<method
+					id="">
+					<signature>void buildFinished(BuildEvent)</signature>
+					<file>src/main/org/apache/tools/ant/listener/MailLogger.java</file>
+				</method>
+			</modified_methods>
+		</change_set>
+		<unit_test></unit_test>
+	</bug_report>
+
+	<bug_report id="57048">
+		<title>Default gzip decoding in &lt;get&gt; is not backwards compatible</title>
+		<description>
+		We have Ant script which downloads tar.gz via HTTP using "get" task and then unpacks it using "untar" task. Some HTTP servers, e.g. Amazon S3 storage, have "Content-Encoding: gzip" header in response for gzipped files. Ant 1.9.4 automatically un-gzips file if it sees such header.
+
+It's pretty smart, but such difference between Ant versions makes it nearly impossible to write portable Ant script: "untar" task requires "compression" parameter. For 1.9.3 and older it should be "gzip", for 1.9.4 and sooner – "none".
+
+We have found a workaround for this problem (using getversion hack).
+
+I propose either adding some parameter to "get" task disabling auto-ungzipping or revert auto-ungipping completely.
+		</description>
+		<system_version>1.9.4</system_version>
+		<change_set>
+			<system_revision>faedd2bc5b9fdcaa0650966bc7fef43c5c59cf9a
+			</system_revision>
+			<modified_methods>
+				<method id="">
+					<signature>URLConnection openConnection(URL)</signature>
+					<file>src/main/org/apache/tools/ant/taskdefs/Get.java</file>
 				</method>
 			</modified_methods>
 			<modified_methods>
-				<method id="void_Scp.add_ResourceCollection">
-					<signature>void add(ResourceCollection res)</signature>
-					<file>src/main/org/apache/tools/ant/taskdefs/optional/ssh/Scp.java</file>
+				<method id="">
+					<signature>boolean downloadFile()</signature>
+					<file>src/main/org/apache/tools/ant/taskdefs/Get.java</file>
 				</method>
 			</modified_methods>
+		</change_set>
+		<unit_test></unit_test>
+	</bug_report>
+
+	<bug_report id="57822">
+		<title>Untar task untars into rubbish</title>
+		<description>
+		On Ant 1.7, 1.8 there are no problems. If you choose to use Ant 1.9 at runtime then this happens when trying to untar a file:
+
+untar:
+    [untar] Expanding: /MV5C/colony/worker/cics.ds.v200/PI37397/com.ibm.cics.php/natives/DSObjects.tar into /MV5C/colony/worker/cics.ds.v200/PI37397/dist
+
+    [untar] expanding øÇø%ÑÂ%ÑÂ%?/ÀÁÊË? to /MV5C/colony/worker/cics.ds.v200/PI37397/dist/øÇø%ÑÂ%ÑÂ%?/ÀÁÊË?
+
+    [untar] expanding øÇø%ÑÂ%ÑÂÌ/øÑÄË? to /MV5C/colony/worker/cics.ds.v200/PI37397/dist/øÇø%ÑÂ%ÑÂÌ/øÑÄË?
+
+DSObjects.tar should untar into php/lib/** and works perfectly on previous versions of Ant.
+
+Something seems to have gone wrong with the encoding - but the untar task does not allow any encoding modification on Ant 1.9.
+		</description>
+		<system_version>1.9.4</system_version>
+		<change_set>
+			<system_revision>1a584200e27de7867d7f613ff9c910dc0cc9730a</system_revision>
 			<modified_methods>
-				<method id="void_Scp.init">
-					<signature>void init()</signature>
-					<file>src/main/org/apache/tools/ant/taskdefs/optional/ssh/Scp.java</file>
-				</method>
-			</modified_methods>
-			<modified_methods>
-				<method id="void_Scp.execute">
+				<method
+					id="">
 					<signature>void execute()</signature>
-					<file>src/main/org/apache/tools/ant/taskdefs/optional/ssh/Scp.java</file>
+					<file>src/main/org/apache/tools/ant/taskdefs/Tar.java</file>
 				</method>
-			</modified_methods>
-			<modified_methods>
-				<method id="void_Scp.upload_List_String">
-					<signature>void upload(final List fileSet, final String toSshUri)</signature>
-					<file>src/main/org/apache/tools/ant/taskdefs/optional/ssh/Scp.java</file>
+				<method	id="">
+					<signature>void expandStream(String, InputStream, File)</signature>
+					<file>src/main/org/apache/tools/ant/taskdefs/Untar.java</file>
 				</method>
-			</modified_methods>
-		</change_set>
-		<unit_test></unit_test>
-	</bug_report>
-
-	<bug_report id="54835">
-		<title>Classpath use seems to be broken in junit ant task?</title>
-		<description>
-			I don't fully understand the history of classpath
-			loading, but at
-			http://ant.apache.org/manual/Tasks/junit.html item 5
-			says "Leave
-			ant-junit.jar in its default location in ANT_HOME/lib but
-			include
-			junit.jar in the
-			&lt;classpath&gt;
-			passed to
-			&lt;junit&gt;.
-			(since Ant 1.7)" - that appears not to work.
-
-			I have a detailed SO
-			question at
-			http://stackoverflow.com/questions/15979391/class-not-found-with-ant-ivy-and-junit-error-in-build-xml
-			but to reproduce simply:
-
-			hg clone
-			ssh://hg@bitbucket.org/isti/java-example
-			cd java-example
-			ant test
-
-			and
-			you should see:
-
-			BUILD FAILED
-			/home/andrew/project/guice/hg/build.xml:33:
-			java.lang.NoClassDefFoundError: junit/framework/TestListener
-			at
-			java.lang.ClassLoader.defineClass1(Native Method)
-			at
-			java.lang.ClassLoader.defineClass(ClassLoader.java:791)
-			...
-			at
-			org.apache.tools.ant.launch.Launcher.run(Launcher.java:280)
-			at
-			org.apache.tools.ant.launch.Launcher.main(Launcher.java:109)
-			Caused
-			by: java.lang.ClassNotFoundException:
-			junit.framework.TestListener
-			at
-			java.net.URLClassLoader$1.run(URLClassLoader.java:366)
-			at
-			java.net.URLClassLoader$1.run(URLClassLoader.java:355)
-			...
-
-			(the above
-			project uses ant; alternatively copy junit-4.8.2.jar to
-			./lib and
-			delete the ivy task from the build.xml).
-			Comment 1
-		</description>
-		<system_version>1.9.0</system_version>
-		<change_set>
-			<system_revision>1470668</system_revision>
-			<modified_methods>
-				<method id="void_JUnitTask.setupJUnitDelegate">
-					<signature>void setupJUnitDelegate()</signature>
-					<file>src/main/org/apache/tools/ant/taskdefs/optional/junit/JUnitTask.java
-					</file>
+				<method	id="">
+					<signature>ArchiveFileSet(ArchiveFileSet)</signature>
+					<file>src/main/org/apache/tools/ant/types/ArchiveFileSet.java</file>
 				</method>
-			</modified_methods>
-		</change_set>
-		<unit_test></unit_test>
-	</bug_report>
-
-	<bug_report id="56849">
-		<title>NPE in ClasspathUtils</title>
-		<description>
-			Hi,
-
-			I get a NPE in ClasspathUtils when calling
-			ScriptMapper.mapFileName.
-
-			Here is the test case.
-
-			Public void test1()
-			throws Throwable {
-			SchemaValidate sv = new SchemaValidate();
-			sv.init();
-			Path path = sv.createClasspath();
-			ScriptMapper sm = new
-			ScriptMapper();
-			sm.setClasspath(path);
-			sm.mapFileName("a");
-			}
-
-			Here is the
-			stack trace.
-			1) test1(Test)java.lang.NullPointerException
-			at
-			org.apache.tools.ant.util.ClasspathUtils$Delegate.getContextProject(ClasspathUtils.java:419)
-			at
-			org.apache.tools.ant.util.ClasspathUtils$Delegate.getClassLoader(ClasspathUtils.java:411)
-			at
-			org.apache.tools.ant.util.ScriptRunnerHelper.generateClassLoader(ScriptRunnerHelper.java:175)
-			at
-			org.apache.tools.ant.util.ScriptRunnerHelper.getRunner(ScriptRunnerHelper.java:190)
-			at
-			org.apache.tools.ant.util.ScriptRunnerHelper.getScriptRunner(ScriptRunnerHelper.java:55)
-			at
-			org.apache.tools.ant.types.optional.AbstractScriptComponent.initScriptRunner(AbstractScriptComponent.java:107)
-			at
-			org.apache.tools.ant.types.optional.ScriptMapper.mapFileName(ScriptMapper.java:81)
-			at Test.test1(Test.java:43)
-		</description>
-		<system_version>1.9.4</system_version>
-		<change_set>
-			<system_revision>13b0df1f064e3cdfd925c1cc84db6b61176204f0
-			</system_revision>
-			<modified_methods>
-				<method
-					id="ClasspathUtils.Delegate_ScriptRunnerHelper.getClassPathDelegate">
-					<signature>ClasspathUtils.Delegate getClassPathDelegate()
-					</signature>
-					<file>src/main/org/apache/tools/ant/util/ScriptRunnerHelper.java
-					</file>
+				<method	id="">
+					<signature>ArchiveScanner newArchiveScanner()</signature>
+					<file>src/main/org/apache/tools/ant/types/TarFileSet.java</file>
 				</method>
-			</modified_methods>
-		</change_set>
-		<unit_test></unit_test>
-	</bug_report>
-
-	<bug_report id="55074">
-		<title>org.apache.tools.ant.property.LocalPropertyStack implementation
-			is not thread-safe
-		</title>
-		<description>
-			I've tried to use Ant build with &lt;parallel&gt; tasks
-			like this
-			(see below) to imitate High Load for the system:
-
-			&lt;target
-			name="load-test"&gt;
-			&lt;parallel&gt;
-			&lt;antcall target="my-test"/&gt;
-			&lt;/parallel&gt;
-			&lt;parallel&gt;
-			&lt;antcall target="my-test"/&gt;
-			&lt;/parallel&gt;
-			&lt;parallel&gt;
-			&lt;antcall target="my-test"/&gt;
-			&lt;/parallel&gt;
-			...
-			...
-			...
-			&lt;parallel&gt;
-			&lt;antcall
-			target="my-test"/&gt;
-			&lt;/parallel&gt;
-			&lt;/target&gt;
-
-			After running
-			this build I sometimes caught an exception:
-
-			Caused by:
-			java.util.ConcurrentModificationException
-			at
-			java.util.LinkedList$ListItr.checkForComodification(LinkedList.java:761)
-			at java.util.LinkedList$ListItr.next(LinkedList.java:696)
-			at
-			org.apache.tools.ant.property.LocalPropertyStack.evaluate(LocalPropertyStack.java:96)
-			at
-			org.apache.tools.ant.property.LocalProperties.evaluate(LocalProperties.java:124)
-			at
-			org.apache.tools.ant.PropertyHelper.getProperty(PropertyHelper.java:845)
-			at org.apache.tools.ant.Project.getProperty(Project.java:607)
-			at
-			org.apache.tools.ant.taskdefs.Ant.execute(Ant.java:374)
-			at
-			org.apache.tools.ant.taskdefs.CallTarget.execute(CallTarget.java:105)
-			at
-			org.apache.tools.ant.UnknownElement.execute(UnknownElement.java:291)
-			at sun.reflect.GeneratedMethodAccessor4.invoke(Unknown Source)
-			at
-			sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
-			at java.lang.reflect.Method.invoke(Method.java:597)
-			at
-			org.apache.tools.ant.dispatch.DispatchUtils.execute(DispatchUtils.java:106)
-			... 32 more
-
-			The problem is that &lt;antcall&gt; task delegates it call
-			to
-			&lt;ant&gt; task (org.apache.tools.ant.taskdefs.Ant) which has such
-			code in line 374 of its execute method:
-
-			String thisAntFile =
-			getProject().getProperty(MagicNames.ANT_FILE);
-
-			PropertyHelper uses
-			LocalProperties which by turn uses
-			LocalPropertyStack resolve
-			"MagicNames.ANT_FILE" property. The origin
-			of the problem is that
-			LocalPropertyStack uses LinkedList (which is
-			not thread safe) to hold
-			all the properties.
-
-			The simplest solution is to use
-			Collections.synchronizedList(new
-			LinkedList
-			&lt;Object&gt;()) instead
-			of LinkedList
-		</description>
-		<system_version>1.8.4</system_version>
-		<change_set>
-			<system_revision>1388e372a9eb6cc6c463fbda928a10afd17b6d0a
-			</system_revision>
-			<modified_methods>
-				<method id="void_LocalPropertyStack.addLocal_String">
-					<signature>void addLocal(String property)</signature>
-					<file>src/main/org/apache/tools/ant/property/LocalPropertyStack.java
-					</file>
+				<method	id="">
+					<signature>void fillMapsFromArchive(Resource, String, Map&lt;String, Resource&gt;, Map&lt;String, Resource&gt;, Map&lt;String, Resource&gt;, Map&lt;String, Resource&gt;)</signature>
+					<file>src/main/org/apache/tools/ant/types/TarScanner.java</file>
 				</method>
-			</modified_methods>
-		</change_set>
-		<unit_test></unit_test>
-	</bug_report>
-
-	<bug_report id="57533">
-		<title>NullPointerException FileUtil.rename / ResourceUtils.copyFile()
-			if copyUsingFileChannels failed
-		</title>
-		<description>
-			Ant scripts are failing time by time because of a NPE
-			(see stacktrace
-			below).
-
-			looking at the sourcecode (ResourceUtils.java
-			line:439) a null-reference for
-			"project" must be the culprit:
-			a)
-			try {
-			copyUsingFileChannels(sourceFile, destFile);
-			copied = true;
-			} catch
-			(IOException ex) {
-			project.log("Attempt to copy " + sourceFile
-			+ " to "
-			+ destFile + " using NIO Channels"
-			+ " failed due to '" +
-			ex.getMessage()
-			+ "'. Falling back to streams.",
-			Project.MSG_WARN);
-			}
-
-			b)
-			It would also crash in the streamCopy-fallback at the second
-			location
-			with a NPE because auf procect=null
-			at line 439:
-			private static
-			OutputStream getOutputStream(Resource resource, boolean
-			append,
-			Project project)
-			throws IOException {
-			if (append) {
-			Appendable a =
-			resource.as(Appendable.class);
-			if (a != null) {
-			return
-			a.getAppendOutputStream();
-			}
-			project.log("Appendable OutputStream not
-			available for non-appendable resource "
-			+ resource + "; using plain
-			OutputStream", Project.MSG_VERBOSE);
-			}
-			return
-			resource.getOutputStream();
-			}
-
-			Guess it would be worth fixing in the
-			next release :->
-
-			Schlauberger Spruch am Ende: and a good NPE-checker
-			of the IDE should have
-			detected this, too :->
-
-			//////////////////////////////////////////////////////////////////////////
-
-
-			STACKTRACE:
-			(project=null is set in FileUtils.java line 409)
-			java.lang.NullPointerException
-			at
-			org.apache.tools.ant.util.ResourceUtils.copyResource(ResourceUtils.java
-			line:439)
-			at
-			org.apache.tools.ant.util.FileUtils.copyFile(FileUtils.java
-			line:559)
-			at org.apache.tools.ant.util.FileUtils.copyFile(FileUtils.java
-			line:519)
-			at
-			org.apache.tools.ant.util.FileUtils.copyFile(FileUtils.java
-			line:480)
-			at org.apache.tools.ant.util.FileUtils.copyFile(FileUtils.java
-			line:443)
-			at
-			org.apache.tools.ant.util.FileUtils.copyFile(FileUtils.java
-			line:409)
-			at org.apache.tools.ant.util.FileUtils.copyFile(FileUtils.java
-			line:384)
-			at
-			org.apache.tools.ant.util.FileUtils.copyFile(FileUtils.java
-			line:322)
-			at org.apache.tools.ant.util.FileUtils.rename(FileUtils.java
-			line:1317)
-			at
-			org.apache.tools.ant.taskdefs.Replace.processFile(Replace.java
-			line:691)
-			at
-			org.apache.tools.ant.taskdefs.Replace.execute(Replace.java line:530)
-			at org.apache.tools.ant.UnknownElement.execute(UnknownElement.java
-			line:292)
-		</description>
-		<system_version>1.9.4</system_version>
-		<change_set>
-			<system_revision>dc37a17ff84af8e9c7fec2aa93d7b2b989fb304c
-			</system_revision>
-			<modified_methods>
-				<method
-					id="void_ResourceUtils.copyResource_Resource_Resource_FilterSetCollection_Vector_boolean_boolean_boolean_String_String_Project_boolean">
-					<signature>void copyResource(final Resource source, final Resource
-						dest,
-						final FilterSetCollection filters, final Vector filterChains,
-						final boolean overwrite, final boolean preserveLastModified,
-						final
-						boolean append,
-						final String inputEncoding, final String
-						outputEncoding,
-						final Project project, final boolean force)
-					</signature>
-					<file>src/main/org/apache/tools/ant/util/ResourceUtils.java
-						b/src/main/org/apache/tools/ant/util/ResourceUtils.java
-					</file>
-				</method>
-				<method
-					id="OutputStream_ResourceUtils.getOutputStream_Resource_boolean_Project">
-					<signature>OutputStream getOutputStream(final Resource resource,
-						final boolean append, final Project project)
-					</signature>
-					<file>src/main/org/apache/tools/ant/util/ResourceUtils.java
-						b/src/main/org/apache/tools/ant/util/ResourceUtils.java
-					</file>
+				<method	id="">
+					<signature>ZipFileSet(ZipFileSet)</signature>
+					<file>src/main/org/apache/tools/ant/types/ZipFileSet.java</file>
 				</method>
 			</modified_methods>
 		</change_set>
