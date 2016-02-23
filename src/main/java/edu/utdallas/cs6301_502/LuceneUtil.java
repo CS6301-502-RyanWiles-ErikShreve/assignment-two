@@ -47,7 +47,7 @@ public class LuceneUtil {
 			parser = new LuceneUtil(true, "/Users/rwiles/lucene/index");
 
 			parser.indexDocument("my file", "document title or id goes here", "document body that you'll query on goes here");
-			List<Document> docs = parser.queryLucene("your query goes here");
+			List<Document> docs = parser.queryLucene("your query goes here", 20);
 			for (Document doc : docs) {
 				System.out.println("Found matching document with the following title: " + doc.getField("title").stringValue());
 
@@ -107,7 +107,7 @@ public class LuceneUtil {
 		}
 	}
 
-	public List<Document> queryLucene(String queryString) throws IOException, ParseException {
+	public List<Document> queryLucene(String queryString, int limit) throws IOException, ParseException {
 		IndexSearcher searcher;
 		List<Document> docs = new ArrayList<Document>();
 
@@ -118,7 +118,7 @@ public class LuceneUtil {
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(new String[] {"fileName", "title", "body"}, analyzer);
 
 		Query query = mfqp.parse(queryString);
-		TopDocs results = searcher.search(query, 60);
+		TopDocs results = searcher.search(query, limit);
 		ScoreDoc[] hits = results.scoreDocs;
 
 		for (ScoreDoc scoreDoc : hits) {

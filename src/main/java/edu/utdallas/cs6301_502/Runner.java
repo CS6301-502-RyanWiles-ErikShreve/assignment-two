@@ -1,14 +1,14 @@
-//***************************************************************************
+// ***************************************************************************
 // Assignment: 2
 // Team : 2
 // Team Members: Ryan Wiles, Erik Shreve
 //
 // Code reuse/attribution notes:
 // args4j (for command line parsing) based on example code from:
-//   https://github.com/kohsuke/args4j/blob/master/args4j/examples/SampleMain.java
+// https://github.com/kohsuke/args4j/blob/master/args4j/examples/SampleMain.java
 // walkFolder method based on example code from:
-//   https://lucene.apache.org/core/5_4_1/demo/src-html/org/apache/lucene/demo/IndexFiles.html
-//***************************************************************************
+// https://lucene.apache.org/core/5_4_1/demo/src-html/org/apache/lucene/demo/IndexFiles.html
+// ***************************************************************************
 package edu.utdallas.cs6301_502;
 
 import java.io.BufferedReader;
@@ -23,6 +23,8 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,32 +49,30 @@ import seers.methspl.MethodDoc;
 import seers.methspl.MethodSplitter;
 
 class Runner {
-	@Option(name="-d",usage="print debug information to console")
+	@Option(name = "-d", usage = "print debug information to console")
 	private boolean debug = false;
-		
-	@Option(name="-c",usage="create new index")
+
+	@Option(name = "-c", usage = "create new index")
 	private static boolean create = false;
 
-	@Option(name="-src", usage="base folder containing .java source to index")
+	@Option(name = "-src", usage = "base folder containing .java source to index")
 	private String baseFolder = "";
-	
-	@Option(name="-i", usage="index location")
+
+	@Option(name = "-i", usage = "index location")
 	private String indexPath = "";
-	
-	@Option(name="-g", usage="gold set file")
-	private String goldSetFile ="";
-	
-    // receives other command line parameters than options
-    @Argument
-    private List<String> arguments = new ArrayList<String>();
-	
+
+	@Option(name = "-g", usage = "gold set file")
+	private String goldSetFile = "";
+
+	// receives other command line parameters than options
+	@Argument
+	private List<String> arguments = new ArrayList<String>();
 
 	private static MethodSplitter splitter;
-	private static LuceneUtil luceneUtil;	
-	private TextScrubber textScrubber;	
+	private static LuceneUtil luceneUtil;
+	private TextScrubber textScrubber;
 	private BugReports bugReports;
-    
-    
+
 	public static void main(String... args) throws Exception {
 
 		Runner r = new Runner();
@@ -80,25 +80,24 @@ class Runner {
 		r.run();
 	}
 
-	public void doMain(String[] args)
-	{
+	public void doMain(String[] args) {
 		CmdLineParser parser = new CmdLineParser(this);
 
 		try {
 			// parse the arguments.
 			parser.parseArgument(args);
-			
-			// check if enough arguments are given.
-			if( goldSetFile.isEmpty() )
-				throw new CmdLineException(parser,"No gold set file was provided");
-			
-			if( indexPath.isEmpty() )
-				throw new CmdLineException(parser,"No index location was provided");
-			
-			if( create && baseFolder.isEmpty() )
-				throw new CmdLineException(parser,"No base folder was provided, but create new index was specified");
 
-		} catch( CmdLineException e ) {
+			// check if enough arguments are given.
+			if (goldSetFile.isEmpty())
+				throw new CmdLineException(parser, "No gold set file was provided");
+
+			if (indexPath.isEmpty())
+				throw new CmdLineException(parser, "No index location was provided");
+
+			if (create && baseFolder.isEmpty())
+				throw new CmdLineException(parser, "No base folder was provided, but create new index was specified");
+
+		} catch (CmdLineException e) {
 			// report an error message.
 			System.err.println(e.getMessage());
 			System.err.println("java Runner [options...] arguments...");
@@ -109,57 +108,76 @@ class Runner {
 			return;
 		}
 	}
-	
+
 	public Runner() {
 		super();
 	}
 
-	public void run()
-	{
+	public void run() {
 		try {
 			// SETUP
 			luceneUtil = new LuceneUtil(create, indexPath);
 			textScrubber = new TextScrubber(loadWords("stop_words.xml"), loadWords("java_keywords.xml"), 2);
-			
-			if (!baseFolder.isEmpty())
-			{
-				System.out.println("Indexing to directory '" + indexPath + "'...");				
-			
-				splitter = new MethodSplitter(baseFolder);	
-				walkFolder(Paths.get(baseFolder));
-			}
-			else
-			{
+
+			if (!baseFolder.isEmpty()) {
+				System.out.println("Indexing to directory '" + indexPath + "'...");
+
+				if (create) {
+					splitter = new MethodSplitter(baseFolder);
+					walkFolder(Paths.get(baseFolder));
+				}
+			} else {
 				System.out.println("Using index at '" + indexPath + "'");
 			}
-			
+
 			bugReports = loadBugReports(goldSetFile);
+
+			HashMap<String, Double> results = new HashMap<String, Double>();
 			
 			// RUN QUERIES		
-			for (BugReport bugReport : bugReports.getBugReports())
-			{
+			for (BugReport bugReport : bugReports.getBugReports()) {
+				ModifiedMethods modifiedMethods = bugReport.getChangeSet().getModifiedMethods();
 				System.out.println("=======================================================================");
-				System.out.println("Bug Info: " + bugReport.getTitle());
-				System.out.println("  Methods Changed: " );
-				for (Method m : bugReport.getChangeSet().getModifiedMethods().getMethods())
-				{
+				System.out.println("Bug ID: " + bugReport.getId() + "; Bug Info: " + bugReport.getTitle());
+				System.out.println("  Methods Changed: ");
+				for (Method m : bugReport.getChangeSet().getModifiedMethods().getMethods()) {
 					System.out.println("  " + m.getSignature() + " from " + m.getFile());
 				}
-				System.out.println("Results from Title + Description:");
-				doQuery(bugReport.getTitle() + bugReport.getDescription());
-				
-				System.out.println("Results from Title Only:");
-				doQuery(bugReport.getTitle());
-				
-				System.out.println("Results from Description Only:");
-				doQuery(bugReport.getDescription());	
+
+				debug("Results from Title + Description:");
+				results.putAll(doQuery(bugReport.getTitle() + bugReport.getDescription(), modifiedMethods, bugReport.getId() + "_td", 20));
+
+				debug("Results from Title Only:");
+				results.putAll(doQuery(bugReport.getTitle(), modifiedMethods, bugReport.getId() + "_t", 20));
+
+				debug("Results from Description Only:");
+				results.putAll(doQuery(bugReport.getDescription(), modifiedMethods, bugReport.getId() + "_d", 20));
 			}
-						
+
+			for (BugReport bugReport : bugReports.getBugReports()) {
+				System.out.println("====================================== RESULTS ====================================");
+				System.out.println("Bug ID: " + bugReport.getId() + "; Bug Info: " + bugReport.getTitle());
+				
+				for (String s : new String[] { "_td", "_t", "_d"} ) {
+					String prefix = bugReport.getId() + s;
+					String precision = results.get(prefix + "_p_5") + ", " + results.get(prefix + "_p_10") + ", " + results.get(prefix + "_p_20");
+					String recall = results.get(prefix + "_r_5") + ", " + results.get(prefix + "_r_10") + ", " + results.get(prefix + "_r_20");
+					String effectiveness = results.get(prefix + "_effectiveness") + "";
+					
+					if ("_td".equals(s)) {
+						System.out.println("Title & Description\t\t" + precision + "\t\t" + recall + "\t\t" + effectiveness);
+					} else if ("_t".equals(s)) {
+						System.out.println("Title              \t\t" + precision + "\t\t" + recall + "\t\t" + effectiveness);
+					} else if ("_d".equals(s)) {
+						System.out.println("Description        \t\t" + precision + "\t\t" + recall + "\t\t" + effectiveness);
+					}
+				}
+			}			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private void debug(String line) {
 		if (this.debug) {
 			System.out.println(line);
@@ -168,10 +186,11 @@ class Runner {
 
 	private Set<String> loadWords(String resource) {
 		Set<String> words = new HashSet<String>();
-		
+
 		ClassLoader classLoader = getClass().getClassLoader();
+		System.out.println("classloader == null: " + (classLoader == null));
 		File file = new File(classLoader.getResource(resource).getFile());
-		
+
 		try {
 			BufferedReader reader = new BufferedReader(new FileReader(file));
 			while (reader.ready()) {
@@ -225,49 +244,87 @@ class Runner {
 		return builder.toString();
 	}
 
-	
-	private void doQuery(String dirtyQueryString) throws IOException, ParseException
-	{
+	private HashMap<String, Double> doQuery(String dirtyQueryString, ModifiedMethods modifiedMethods, String id, int limit) throws IOException, ParseException {
 		String cleanQueryString = "";
 		List<String> queryStrings = textScrubber.scrub(dirtyQueryString);
-		for (String q : queryStrings)
-		{
+		for (String q : queryStrings) {
 			cleanQueryString = cleanQueryString + " " + q;
 		}
-		
-		List<Document> docResults = luceneUtil.queryLucene(cleanQueryString);
-		
-		for (Document d : docResults)
-		{
-			System.out.println(d.get("title") + " from " + d.get("fileName"));
+
+		List<Document> docResults = luceneUtil.queryLucene(cleanQueryString, limit);
+
+		Integer[] measurementValsArr = new Integer[] { 5, 10, 20 };
+		List<Integer> measurementVals = Arrays.asList(measurementValsArr);
+
+		HashMap<String, Double> results = new HashMap<String, Double>();
+
+		int effectiveness = 0;
+		for (Integer val : measurementVals) {
+			int numberOfReturnedDocuments = 0;
+			int numberOfReturnedRelevantDocuments = 0;
+
+			HashSet<String> recall = new HashSet<String>();
+
+			for (Document d : docResults) {
+				String methodName = d.get("title");
+				String fileName = d.get("fileName");
+
+				debug(methodName + " from " + d.get("fileName"));
+				numberOfReturnedDocuments++;
+
+				for (Method method : modifiedMethods.getMethods()) {
+					if (fileName.endsWith(method.getFile())) {
+						debug("\tmatched file: " + method.getSignature() + " vs " + methodName);
+						if (method.getSignature().equals(methodName)) {
+							debug("\tmatched method!!!");
+							numberOfReturnedRelevantDocuments++;
+							recall.add(method.getSignature());
+							if (effectiveness == 0) {
+								effectiveness = numberOfReturnedDocuments;
+							}
+						}
+					}
+				}
+				if (numberOfReturnedDocuments == val) {
+					break;
+				}
+			}
+			if (val == numberOfReturnedDocuments) {
+				results.put(id + "_p_" + numberOfReturnedDocuments, (numberOfReturnedRelevantDocuments / (double) numberOfReturnedDocuments));
+				results.put(id + "_r_" + numberOfReturnedDocuments, (recall.size() / (double) modifiedMethods.getMethods().size()));
+				debug("precision @" + numberOfReturnedDocuments + ": " + (numberOfReturnedRelevantDocuments / (double) numberOfReturnedDocuments));
+				debug("recall @" + numberOfReturnedDocuments + ": " + (recall.size() / (double) modifiedMethods.getMethods().size()));
+			}
 		}
+		results.put(id + "_effectiveness", (double) effectiveness);
+		debug("effectiveness: " + effectiveness);
+		return results;
 	}
-	
+
 	private void walkFolder(Path path) throws IOException {
 		System.out.println("Input directory '" + path.toString() + "'...");
-		
+
 		long start = System.nanoTime();
-		
+
 		luceneUtil.openIndexForAdd();
-		ExecutorService executor = Executors.newFixedThreadPool(4); // FIXME: make number of threads configurable
+		final ExecutorService executor = Executors.newFixedThreadPool(4); // FIXME: make number of threads configurable
 
 		// Based on code from Lucene demo (https://lucene.apache.org/core/5_4_1/demo/src-html/org/apache/lucene/demo/IndexFiles.html)
 		Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 				try {
-					if (file.toString().endsWith(".java")) {
+					if (file.toString().endsWith(".java") && !file.toString().contains("test")) {
 						System.out.println("processing " + file.toString());
 
 						File f = file.toFile();
 						List<MethodDoc> methods = splitter.splitIntoMethods(f);
 
-							
 						for (MethodDoc m : methods) {
 							Runnable methodIndexer = new MethodIndexer(m, file);
 							executor.execute(methodIndexer);
-						}						
-						
+						}
+
 					} else {
 						debug("ignoring " + file.toString());
 					}
@@ -278,23 +335,20 @@ class Runner {
 			}
 
 		});
-		
+
 		executor.shutdown();
-		while(!executor.isTerminated()){}
-		
+		while (!executor.isTerminated()) {}
+
 		luceneUtil.closeIndexForAdd();
-		
+
 		long duration = System.nanoTime() - start;
 		debug("Index time (ns): " + duration);
 	}
 
-	private class MethodIndexer implements Runnable
-	{
+	private class MethodIndexer implements Runnable {
 		private MethodDoc m;
 		private Path path;
-		
-			
-	
+
 		public MethodIndexer(MethodDoc m, Path path) {
 			super();
 			this.m = m;
@@ -306,9 +360,9 @@ class Runner {
 			String methodName = m.getName();
 
 			debug("fileName: " + fileName + "; methodName: " + methodName);
-		
+
 			StringBuilder builder = new StringBuilder();
-		
+
 			for (String splitterMethodText : m.getTxtElements()) {
 				for (String str : textScrubber.scrub(splitterMethodText)) {
 					if (!str.isEmpty()) {
@@ -320,7 +374,6 @@ class Runner {
 			luceneUtil.indexDocument(fileName, methodName, builder.toString());
 		}
 
-		@Override
 		public void run() {
 			try {
 				indexMethod();
