@@ -106,13 +106,11 @@ I propose either adding some parameter to "get" task disabling auto-ungzipping o
 			<system_revision>faedd2bc5b9fdcaa0650966bc7fef43c5c59cf9a
 			</system_revision>
 			<modified_methods>
-				<method id="">
+				<method id="openConnection">
 					<signature>URLConnection openConnection(URL)</signature>
 					<file>src/main/org/apache/tools/ant/taskdefs/Get.java</file>
 				</method>
-			</modified_methods>
-			<modified_methods>
-				<method id="">
+				<method id="downloadFile">
 					<signature>boolean downloadFile()</signature>
 					<file>src/main/org/apache/tools/ant/taskdefs/Get.java</file>
 				</method>
