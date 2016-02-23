@@ -154,6 +154,11 @@ class Runner {
 				results.putAll(doQuery(bugReport.getDescription(), modifiedMethods, bugReport.getId() + "_d", 20));
 			}
 
+			double avgP5, avgP10, avgP20;
+			double avgR5, avgR10, avgR20;
+			avgP5 = avgP10 = avgP20 = avgR5 = avgR10 = avgR20 = 0;
+			int count = 0;
+			
 			for (BugReport bugReport : bugReports.getBugReports()) {
 				System.out.println("====================================== RESULTS ====================================");
 				System.out.println("Bug ID: " + bugReport.getId() + "; Bug Info: " + bugReport.getTitle());
@@ -164,6 +169,15 @@ class Runner {
 					String recall = results.get(prefix + "_r_5") + ", " + results.get(prefix + "_r_10") + ", " + results.get(prefix + "_r_20");
 					String effectiveness = results.get(prefix + "_effectiveness") + "";
 					
+					avgP5 += results.get(prefix + "_p_5");
+					avgP10 += results.get(prefix + "_p_10");
+					avgP20 += results.get(prefix + "_p_20");
+					
+					avgR5 += results.get(prefix + "_r_5");
+					avgR10 += results.get(prefix + "_r_10");
+					avgR20 += results.get(prefix + "_r_20");
+					count++;
+					
 					if ("_td".equals(s)) {
 						System.out.println("Title & Description\t\t" + precision + "\t\t" + recall + "\t\t" + effectiveness);
 					} else if ("_t".equals(s)) {
@@ -172,7 +186,12 @@ class Runner {
 						System.out.println("Description        \t\t" + precision + "\t\t" + recall + "\t\t" + effectiveness);
 					}
 				}
-			}			
+			}
+			String precision = (avgP5 / count) + ", " + (avgP10 / count) + ", " + (avgP20 / count);
+			String recall = (avgR5 / count) + ", " + (avgR10 / count) + ", " + (avgR20 / count);
+			System.out.println("====================================== RESULTS ====================================");
+						System.out.println("Average Results    \t\t" + precision + "\t\t" + recall);
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -221,7 +240,7 @@ class Runner {
 				System.out.println("\tSystem Revision: " + report.getChangeSet().getSystemRevision());
 
 				for (Method method : report.getChangeSet().getModifiedMethods().getMethods()) {
-					System.out.println("\tFile: " + method.getFile());
+					System.out.println("\tFile: " + method.getFile() + "; " + method.getSignature());
 				}
 			}
 		}
@@ -269,7 +288,7 @@ class Runner {
 				String methodName = d.get("title");
 				String fileName = d.get("fileName");
 
-				debug(methodName + " from " + d.get("fileName"));
+//				debug(methodName + " from " + d.get("fileName"));
 				numberOfReturnedDocuments++;
 
 				for (Method method : modifiedMethods.getMethods()) {
