@@ -24,10 +24,8 @@
 			</system_revision>
 			<modified_methods>
 				<method
-					id="List_ReorderingImportAdder.addImports_Collection_Collection">
-					<signature>List&lt;ImportName&gt;
-						addImports(Collection&lt;ImportName&gt; existingImports,
-						Collection&lt;ImportName&gt; importsToAdd)</signature>
+					id="">
+					<signature>List&lt;ImportName&gt; addImports(Collection&lt;ImportName&gt;, Collection&lt;ImportName&gt;)</signature>
 					<file>org.eclipse.jdt.core/dom/org/eclipse/jdt/internal/core/dom/rewrite/imports/ReorderingImportAdder.java
 					</file>
 				</method>
@@ -77,12 +75,12 @@
 			</system_revision>
 			<modified_methods>
 				<method id="void_FieldAligner.prepareAlign_TypeDeclaration">
-					<signature>void prepareAlign(TypeDeclaration node)</signature>
+					<signature>void prepareAlign(TypeDeclaration)</signature>
 					<file>org.eclipse.jdt.core/formatter/org/eclipse/jdt/internal/formatter/linewrap/FieldAligner.java
 					</file>
 				</method>
 				<method id="boolean_FormatterBugsTests.visit_TypeDeclaration">
-					<signature>public boolean visit(TypeDeclaration node)</signature>
+					<signature>boolean visit(TypeDeclaration)</signature>
 					<file>org.eclipse.jdt.core/formatter/org/eclipse/jdt/internal/formatter/linewrap/WrapPreparator.java
 					</file>
 				</method>
@@ -122,10 +120,8 @@
 			<system_revision>5528a485410d6dd0a6bc403d73b1c185f848beaa
 			</system_revision>
 			<modified_methods>
-				<method id="void_CommentsPreparator.preserveWhitespace_Token_int)">
-					<signature>void preserveWhitespace(Token commentToken, int
-						commentIndex)
-					</signature>
+				<method id="">
+					<signature>void preserveWhitespace(Token, int)</signature>
 					<file>org.eclipse.jdt.core/formatter/org/eclipse/jdt/internal/formatter/CommentsPreparator.java
 					</file>
 				</method>
@@ -178,9 +174,8 @@
 			<system_revision>c554caa948bbe051a5aeee635338c74832d8067f
 			</system_revision>
 			<modified_methods>
-				<method id="Token_Token.fromCurrent_Scanner_int)">
-					<signature>Token fromCurrent(Scanner scanner, int currentToken)
-					</signature>
+				<method id="">
+					<signature>Token fromCurrent(Scanner, int)</signature>
 					<file>org.eclipse.jdt.core/formatter/org/eclipse/jdt/internal/formatter/Token.java
 					</file>
 				</method>
@@ -206,16 +201,16 @@
 		<change_set>
 			<system_revision>4.5</system_revision>
 			<modified_methods>
-				<method id="boolean_InferenceContext18.addConstraintsToC_OneExpr_Expression_Set_TypeBinding_TypeBinding_MethodBinding_boolean">
-					<signature>boolean addConstraintsToC_OneExpr(Expression expri, Set&lt;ConstraintFormula&gt; c, TypeBinding fsi, TypeBinding substF, MethodBinding method, boolean interleaved)</signature>
+				<method id="">
+					<signature>boolean addConstraintsToC_OneExpr(Expression, Set&lt;ConstraintFormula&gt;, TypeBinding, TypeBinding, MethodBinding, boolean)</signature>
 					<file>org.eclipse.jdt.core/compiler/org/eclipse/jdt/internal/compiler/lookup/InferenceContext18.java</file>
 				</method>
-				<method id="Substitution_InferenceContext18.getResultSubstitution_BoundSet)">
-					<signature>Substitution getResultSubstitution(final BoundSet result)</signature>
+				<method id="">
+					<signature>Substitution getResultSubstitution(BoundSet)</signature>
 					<file>org.eclipse.jdt.core/compiler/org/eclipse/jdt/internal/compiler/lookup/InferenceContext18.java</file>
 				</method>
-				<method id="void_InferenceContext18.reportUncheckedConversions_BoundSet)">
-					<signature>void reportUncheckedConversions(BoundSet solution)</signature>
+				<method id="">
+					<signature>void reportUncheckedConversions(BoundSet)</signature>
 					<file>org.eclipse.jdt.core/compiler/org/eclipse/jdt/internal/compiler/lookup/InferenceContext18.java</file>
 				</method>
 			</modified_methods>
